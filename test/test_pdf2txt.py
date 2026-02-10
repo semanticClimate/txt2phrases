@@ -1,6 +1,4 @@
-"""
-Unit tests for pdf2txt module.
-"""
+# Unit tests for pdf2txt module.
 import os
 import pytest
 from pathlib import Path
@@ -18,11 +16,9 @@ class TestConvertPdfToText:
         assert result is not None, "result should not be None"
         assert Path(result).exists(), "Path(result) should exist"
         assert Path(result).suffix == ".txt", "File extension should match expected"
-        
         # Check that output file contains text
         content = Path(result).read_text(encoding="utf-8")
         assert len(content) > 0, "Length should be greater than 0"
-
     def test_output_directory_creation(self, sample_pdf_path, temp_output_dir):
         """Test that output directory is created if it doesn't exist."""
         new_dir = temp_output_dir.joinpath("new_subdir")
@@ -30,14 +26,12 @@ class TestConvertPdfToText:
         
         assert new_dir.exists(), "new_dir should exist"
         assert result is not None, "result should not be None"
-
     def test_output_filename_matches_input(self, sample_pdf_path, temp_output_dir):
         """Test that output filename is derived from input filename."""
         result = convert_pdf_to_text(sample_pdf_path, temp_output_dir)
         
-        expected_name = sample_pdf_path.stem + ".txt"
+        expected_name = sample_pdf_path.stem + """.txt"""
         assert Path(result).name == expected_name, "Path(result).name should equal expected_name"
-
     def test_invalid_pdf_handling(self, temp_output_dir):
         """Test handling of invalid/corrupted PDF."""
         # Create a file that looks like PDF but isn't valid
@@ -48,7 +42,6 @@ class TestConvertPdfToText:
         # Should return None or handle gracefully
         # The function catches exceptions and returns None
         assert result is None or not Path(result).exists(), "result  or not Path(result).exists() should be None"
-
     def test_empty_pdf(self, temp_output_dir):
         """Test handling of empty PDF."""
         # Create minimal PDF (may be empty)
@@ -85,7 +78,6 @@ class TestConvertPdfToText:
             
             result = convert_pdf_to_text(multi_pdf, temp_output_dir)
             assert result is not None, "result should not be None"
-            
             content = Path(result).read_text(encoding="utf-8")
             # Should contain content from multiple pages
             assert len(content) > 0, "Length should be greater than 0"
@@ -122,11 +114,9 @@ class TestPdf2TxtMain:
         # Check output
         captured = capsys.readouterr()
         assert "Successfully converted" in captured.out or "Converted" in captured.out, "Expected message not found in captured output"
-        
         # Check file was created
         txt_files = list(temp_output_dir.glob("*.txt"))
         assert len(txt_files) > 0, "Length should be greater than 0"
-
     def test_main_directory(self, fixtures_dir, temp_output_dir, capsys):
         """Test main function with directory of PDFs."""
         # Create a directory with PDFs
@@ -145,7 +135,6 @@ class TestPdf2TxtMain:
         
         captured = capsys.readouterr()
         assert "Found" in captured.out or "Successfully converted" in captured.out, "Expected message not found in captured output"
-
     def test_main_invalid_input(self, temp_output_dir, capsys):
         """Test main function with invalid input."""
         invalid_path = temp_output_dir.joinpath("nonexistent.pdf")
@@ -154,7 +143,6 @@ class TestPdf2TxtMain:
         
         captured = capsys.readouterr()
         assert "No PDF files found" in captured.out or "Failed" in captured.out, "Expected message not found in captured output"
-
     def test_main_nonexistent_output_dir(self, sample_pdf_path, temp_output_dir):
         """Test that main creates output directory if it doesn't exist."""
         new_output = temp_output_dir.joinpath("new_output_dir")

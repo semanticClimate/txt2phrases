@@ -1,6 +1,4 @@
-"""
-Integration tests for txt2phrases pipeline.
-"""
+# Integration tests for txt2phrases pipeline.
 import os
 import pytest
 from pathlib import Path
@@ -24,7 +22,6 @@ class TestPdfToKeywordsPipeline:
         
         assert txt_path is not None, "txt_path should not be None"
         assert Path(txt_path).exists(), "Path(txt_path) should exist"
-        
         # Step 2: Extract keywords from TXT
         keyword_output_dir = temp_output_dir.joinpath("keywords")
         extractor = KeywordExtraction(
@@ -37,13 +34,11 @@ class TestPdfToKeywordsPipeline:
         # Check keyword CSV was created
         csv_files = list(keyword_output_dir.glob("*_keywords.csv"))
         assert len(csv_files) > 0, "Length should be greater than 0"
-        
         # Verify CSV content
         df = pd.read_csv(csv_files[0])
-        assert "keyword" in df.columns, ""keyword" in df.columns should be true"
-        assert "count" in df.columns, ""count" in df.columns should be true"
+        assert "keyword" in df.columns, "keyword in df.columns should be true"
+        assert "count" in df.columns, "count in df.columns should be true"
         assert len(df) > 0, "Length should be greater than 0"
-
     @pytest.mark.integration
     @pytest.mark.requires_model
     def test_multiple_pdfs_pipeline(self, fixtures_dir, temp_output_dir):
@@ -76,8 +71,6 @@ class TestPdfToKeywordsPipeline:
         # Check multiple keyword CSVs were created
         csv_files = list(keyword_output_dir.glob("*_keywords.csv"))
         assert len(csv_files) >= len(pdf_files), "Length should be greater than 0"
-
-
 class TestHtmlToKeywordsPipeline:
     """Integration tests for HTML → TXT → Keywords pipeline."""
 
@@ -91,7 +84,6 @@ class TestHtmlToKeywordsPipeline:
         
         assert txt_path is not None, "txt_path should not be None"
         assert Path(txt_path).exists(), "Path(txt_path) should exist"
-        
         # Step 2: Extract keywords from TXT
         keyword_output_dir = temp_output_dir.joinpath("keywords")
         extractor = KeywordExtraction(
@@ -104,8 +96,6 @@ class TestHtmlToKeywordsPipeline:
         # Check keyword CSV was created
         csv_files = list(keyword_output_dir.glob("*_keywords.csv"))
         assert len(csv_files) > 0, "Length should be greater than 0"
-
-
 class TestFullClassificationPipeline:
     """Integration tests for full classification pipeline."""
 
@@ -119,12 +109,12 @@ class TestFullClassificationPipeline:
         
         # Create sample text files representing different chapters
         (txt_dir.joinpath("chapter1.txt")).write_text(
-            "Climate change is a critical issue. Greenhouse effect causes global warming. "
-            "Carbon dioxide levels are increasing. Temperature is rising."
+            """Climate change is a critical issue. Greenhouse effect causes global warming. """
+            """Carbon dioxide levels are increasing. Temperature is rising."""
         )
         (txt_dir.joinpath("chapter2.txt")).write_text(
-            "Machine learning is transforming industries. Deep learning models are powerful. "
-            "Neural networks can process complex data. Algorithms improve over time."
+            """Machine learning is transforming industries. Deep learning models are powerful. """
+            """Neural networks can process complex data. Algorithms improve over time."""
         )
         
         # Step 2: Extract keywords
@@ -146,10 +136,9 @@ class TestFullClassificationPipeline:
         )
         
         # Check classification outputs
-        assert (classification_output_dir.joinpath("chapter1_specific_keywords.csv")).exists(), "(classification_output_dir.joinpath("chapter1_specific_keywords.csv")) should exist"
-        assert (classification_output_dir.joinpath("chapter2_specific_keywords.csv")).exists(), "(classification_output_dir.joinpath("chapter2_specific_keywords.csv")) should exist"
-        assert (classification_output_dir.joinpath("general_specific_keywords.csv")).exists(), "(classification_output_dir.joinpath("general_specific_keywords.csv")) should exist"
-
+        assert (classification_output_dir.joinpath("chapter1_specific_keywords.csv")).exists(), "(classification_output_dir.joinpath(chapter1_specific_keywords.csv)) should exist"
+        assert (classification_output_dir.joinpath("chapter2_specific_keywords.csv")).exists(), "(classification_output_dir.joinpath(chapter2_specific_keywords.csv)) should exist"
+        assert (classification_output_dir.joinpath("general_specific_keywords.csv")).exists(), "(classification_output_dir.joinpath('general_specific_keywords.csv)) should exist"
     @pytest.mark.integration
     @pytest.mark.requires_model
     def test_error_propagation(self, temp_output_dir):
@@ -171,7 +160,7 @@ class TestFullClassificationPipeline:
             # If it succeeds, that's fine too
             assert True, "True should be true"
         except Exception:
-            # If it fails, that's also acceptable for empty files
+            # If it fails, thats also acceptable for empty files"""
             pytest.skip("Empty file handling may vary")
 
 

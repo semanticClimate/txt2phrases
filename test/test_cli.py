@@ -1,6 +1,4 @@
-"""
-Unit tests for CLI module.
-"""
+# Unit tests for CLI module.
 import os
 import pytest
 import subprocess
@@ -20,11 +18,9 @@ class TestCliPdf2Txt:
         
         captured = capsys.readouterr()
         assert "Converted" in captured.out or "Successfully" in captured.out, "Expected message not found in captured output"
-        
         # Check file was created
         txt_files = list(temp_output_dir.glob("*.txt"))
         assert len(txt_files) > 0, "Length should be greater than 0"
-
     def test_pdf2txt_directory(self, fixtures_dir, temp_output_dir, capsys):
         """Test pdf2txt command with directory."""
         # Create directory with PDFs
@@ -40,7 +36,6 @@ class TestCliPdf2Txt:
         
         captured = capsys.readouterr()
         assert "Found" in captured.out or "All PDF files converted" in captured.out, "Expected message not found in captured output"
-
     def test_pdf2txt_missing_args(self, capsys):
         """Test pdf2txt command with missing arguments."""
         sys.argv = ["txt2phrases", "pdf2txt"]
@@ -59,8 +54,6 @@ class TestCliPdf2Txt:
         
         captured = capsys.readouterr()
         assert "No PDF files found" in captured.out or "Failed" in captured.out, "Expected message not found in captured output"
-
-
 class TestCliHtml2Txt:
     """Tests for html2txt CLI command."""
 
@@ -72,11 +65,9 @@ class TestCliHtml2Txt:
         
         captured = capsys.readouterr()
         assert "Converted" in captured.out or "Saved" in captured.out, "Expected message not found in captured output"
-        
         # Check file was created
         txt_files = list(temp_output_dir.glob("*.txt"))
         assert len(txt_files) > 0, "Length should be greater than 0"
-
     def test_html2txt_directory(self, temp_output_dir, capsys):
         """Test html2txt command with directory."""
         # Create directory with HTML files
@@ -91,7 +82,6 @@ class TestCliHtml2Txt:
         
         captured = capsys.readouterr()
         assert "Found" in captured.out or "All HTML files converted" in captured.out, "Expected message not found in captured output"
-
     def test_html2txt_missing_args(self, capsys):
         """Test html2txt command with missing arguments."""
         sys.argv = ["txt2phrases", "html2txt"]
@@ -106,20 +96,16 @@ class TestCliKeyphrases:
     @pytest.mark.requires_model
     def test_keyphrases_single_file(self, sample_txt_path, temp_output_dir, capsys):
         """Test keyphrases command with single file."""
-        sys.argv = ["txt2phrases", "keyphrases", "-i", str(sample_txt_path), 
-                   "-o", str(temp_output_dir), "-n", "10"]
-        
+        sys.argv = ["txt2phrases", "keyphrases", "-i", str(sample_txt_path), "-o"]
         main()
         
         # Check CSV was created
         csv_files = list(temp_output_dir.glob("*_keywords.csv"))
         assert len(csv_files) > 0, "Length should be greater than 0"
-
     @pytest.mark.requires_model
     def test_keyphrases_default_top_n(self, sample_txt_path, temp_output_dir, capsys):
         """Test keyphrases command with default top_n."""
-        sys.argv = ["txt2phrases", "keyphrases", "-i", str(sample_txt_path), 
-                   "-o", str(temp_output_dir)]
+        sys.argv = ["txt2phrases", "keyphrases", "-i", str(sample_txt_path), "-o", str(temp_output_dir)]
         
         main()
         
@@ -129,12 +115,10 @@ class TestCliKeyphrases:
             df = pd.read_csv(csv_files[0])
             # Default top_n is 1000, but actual results may be less
             assert len(df) <= 1000, "Length assertion failed: len(df) <= 1000"
-
     @pytest.mark.requires_model
     def test_keyphrases_custom_top_n(self, sample_txt_path, temp_output_dir, capsys):
         """Test keyphrases command with custom top_n."""
-        sys.argv = ["txt2phrases", "keyphrases", "-i", str(sample_txt_path), 
-                   "-o", str(temp_output_dir), "-n", "5"]
+        sys.argv = ["txt2phrases", "keyphrases", "-i", str(sample_txt_path), "-o"]
         
         main()
         
@@ -143,7 +127,6 @@ class TestCliKeyphrases:
             import pandas as pd
             df = pd.read_csv(csv_files[0])
             assert len(df) <= 5, "Length assertion failed: len(df) <= 5"
-
     def test_keyphrases_missing_args(self, capsys):
         """Test keyphrases command with missing arguments."""
         sys.argv = ["txt2phrases", "keyphrases"]
@@ -169,14 +152,11 @@ class TestCliAuto:
         
         output_dir = temp_output_dir.joinpath("output")
         
-        sys.argv = ["txt2phrases", "auto", "-i", str(input_dir), 
-                   "-o", str(output_dir), "-n", "10"]
-        
+        sys.argv = ["txt2phrases", "auto", "-i", str(input_dir), "-o"]
         main()
         
         # Check output directory was created
         assert output_dir.exists(), "output_dir should exist"
-
     def test_auto_missing_args(self, capsys):
         """Test auto command with missing arguments."""
         sys.argv = ["txt2phrases", "auto"]

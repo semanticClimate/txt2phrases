@@ -133,6 +133,48 @@ def run_keyword_extraction(input_path: Path, output_dir: Path, top_n: int):
     except Exception as e:
         print(f"Keyword extraction failed: {e}")
 
+# -----------------------------
+# Main Pipeline (for CLI integration)
+# -----------------------------
+def main(args=None):
+    """Main function for CLI integration."""
+    import argparse
+    
+    parser = argparse.ArgumentParser(
+        description="Process PyGetPapers output (PDF → TXT → keyphrases)."
+    )
+    parser.add_argument("-i", "--input", required=True, help="Input folder (PyGetPapers output or PDFs)")
+    parser.add_argument("-o", "--output", required=True, help="Output folder for TXT and keyword CSVs")
+    parser.add_argument("-n", "--num_keywords", type=int, default=100, help="Number of top keywords to extract")
+    
+    if args is None:
+        args = parser.parse_args()
+    else:
+        args = parser.parse_args(args)
+
+    input_path = Path(args.input)
+    output_path = Path(args.output)
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    if detect_pygetpapers_structure(input_path):
+        print("Detected PyGetPapers-style folder structure.")
+    else:
+        print("Standard folder detected.")
+
+    pdfs = find_pdfs(input_path)
+    print(f"Found {len(pdfs)} PDFs.")
+
+    if pdfs:
+        txt_dir = output_path.joinpath("txt")
+        converted_txts = convert_all_pdfs(pdfs, txt_dir)
+        print(f"Converted {len(converted_txts)} PDFs to TXT.")
+
+        print("\nRunning keyword extraction...")
+        run_keyword_extraction(txt_dir, output_path, args.num_keywords)
+        print("\nAuto-pipeline complete!")
+    else:
+        print("No PDF files found to process.")
+
 
 
 

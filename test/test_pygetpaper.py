@@ -1,6 +1,4 @@
-"""
-Unit tests for pygetpaper module (auto pipeline).
-"""
+# Unit tests for pygetpaper module (auto pipeline).
 import os
 import pytest
 from pathlib import Path
@@ -30,7 +28,6 @@ class TestDetectPygetpapersStructure:
         
         result = detect_pygetpapers_structure(pygetpapers_dir)
         assert result is True, "result is True should be true"
-
     def test_detect_standard_structure(self, temp_output_dir):
         """Test detection of standard (non-PyGetPapers) structure."""
         standard_dir = temp_output_dir.joinpath("standard_pdfs")
@@ -42,13 +39,11 @@ class TestDetectPygetpapersStructure:
         
         result = detect_pygetpapers_structure(standard_dir)
         assert result is False, "result is False should be true"
-
     def test_detect_nonexistent_directory(self, temp_output_dir):
         """Test detection with nonexistent directory."""
         nonexistent = temp_output_dir.joinpath("nonexistent")
         result = detect_pygetpapers_structure(nonexistent)
         assert result is False, "result is False should be true"
-
     def test_detect_empty_directory(self, temp_output_dir):
         """Test detection with empty directory."""
         empty_dir = temp_output_dir.joinpath("empty")
@@ -56,8 +51,6 @@ class TestDetectPygetpapersStructure:
         
         result = detect_pygetpapers_structure(empty_dir)
         assert result is False, "result is False should be true"
-
-
 class TestFindPdfs:
     """Tests for find_pdfs function."""
 
@@ -74,8 +67,7 @@ class TestFindPdfs:
         pdfs = find_pdfs(pdf_dir)
         
         assert len(pdfs) == 2, "Length should match expected value"
-        assert all(p.suffix.lower() == ".pdf" for p in pdfs), "all(p.suffix.lower() should equal ".pdf" for p in pdfs)"
-
+        assert all(p.suffix.lower() == ".pdf" for p in pdfs), f"suffixes should equal '.pdf' for p in pdfs)"
     def test_find_pdfs_recursive(self, temp_output_dir):
         """Test finding PDFs recursively."""
         base_dir = temp_output_dir.joinpath("base")
@@ -93,7 +85,6 @@ class TestFindPdfs:
         pdfs = find_pdfs(base_dir)
         
         assert len(pdfs) == 2, "Length should match expected value"
-
     def test_find_pdfs_empty_directory(self, temp_output_dir):
         """Test finding PDFs in empty directory."""
         empty_dir = temp_output_dir.joinpath("empty")
@@ -101,7 +92,6 @@ class TestFindPdfs:
         
         pdfs = find_pdfs(empty_dir)
         assert len(pdfs) == 0, "Length should match expected value"
-
     def test_find_pdfs_case_insensitive(self, temp_output_dir):
         """Test that PDF extension matching is case-insensitive."""
         pdf_dir = temp_output_dir.joinpath("pdf_dir")
@@ -113,8 +103,6 @@ class TestFindPdfs:
         
         pdfs = find_pdfs(pdf_dir)
         assert len(pdfs) == 3, "Length should match expected value"
-
-
 class TestConvertPdfToTxt:
     """Tests for convert_pdf_to_txt function."""
 
@@ -126,12 +114,10 @@ class TestConvertPdfToTxt:
         assert result is not None, "result should not be None"
         assert Path(result).exists(), "Path(result) should exist"
         assert Path(result).suffix == ".txt", "File extension should match expected"
-        
         # Check filename uses parent folder name
         folder_name = sample_pdf_path.parent.name
         if folder_name:
             assert folder_name in Path(result).stem or Path(result).exists(), "folder_name in Path(result).stem or Path(result) should exist"
-
     def test_convert_pdf_nonexistent(self, temp_output_dir):
         """Test converting nonexistent PDF."""
         nonexistent_pdf = temp_output_dir.joinpath("nonexistent.pdf")
@@ -139,8 +125,6 @@ class TestConvertPdfToTxt:
         
         # Should handle gracefully
         assert result is None or not Path(result).exists(), "result  or not Path(result).exists() should be None"
-
-
 class TestConvertAllPdfs:
     """Tests for convert_all_pdfs function."""
 
@@ -161,13 +145,10 @@ class TestConvertAllPdfs:
         if len(pdfs) > 0:
             results = convert_all_pdfs(pdfs, temp_output_dir, workers=1)
             assert len(results) > 0, "Length should be greater than 0"
-
     def test_convert_empty_list(self, temp_output_dir):
         """Test converting empty list of PDFs."""
         results = convert_all_pdfs([], temp_output_dir, workers=1)
         assert len(results) == 0, "Length should match expected value"
-
-
 class TestRunKeywordExtraction:
     """Tests for run_keyword_extraction function."""
 
@@ -188,8 +169,6 @@ class TestRunKeywordExtraction:
         # Check keyword CSV was created
         csv_files = list(output_dir.glob("*_keywords.csv"))
         assert len(csv_files) > 0, "Length should be greater than 0"
-
-
 class TestPygetpaperMain:
     """Tests for main function."""
 
@@ -211,12 +190,11 @@ class TestPygetpaperMain:
         
         output_dir = temp_output_dir.joinpath("output")
         
-        args = ["-i", str(input_dir), "-o", str(output_dir), "-n", "10"]
+        args = ["-i", str(input_dir), "-o", str(output_dir), "-n", 10]
         main(args)
         
-        # Check output directory was created
+        # Check output directory was created"""
         assert output_dir.exists(), "output_dir should exist"
-
     @pytest.mark.integration
     @pytest.mark.requires_model
     def test_main_standard_structure(self, fixtures_dir, temp_output_dir):
@@ -232,11 +210,11 @@ class TestPygetpaperMain:
         
         output_dir = temp_output_dir.joinpath("output")
         
-        args = ["-i", str(input_dir), "-o", str(output_dir), "-n", "10"]
+        args = ["-i", str(input_dir), "-o", str(output_dir), "-n", 10]
         main(args)
         
         # Check output directory was created
-        assert output_dir.exists(), "output_dir should exist"
+        assert output_dir.exists(), f"{output_dir} should exist"
 
     def test_main_no_pdfs(self, temp_output_dir):
         """Test main function with no PDFs."""
@@ -245,7 +223,7 @@ class TestPygetpaperMain:
         
         output_dir = temp_output_dir.joinpath("output")
         
-        args = ["-i", str(input_dir), "-o", str(output_dir), "-n", "10"]
+        args = ["-i", str(input_dir), "-o", str(output_dir), "-n", 10]
         main(args)
         
         # Should handle gracefully
