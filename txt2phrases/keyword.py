@@ -113,27 +113,3 @@ class KeywordExtraction:
         else:
             raise ValueError(" Please provide a valid TXT file or folder path.")
 
-
-# -----------------------------
-# CLI
-# -----------------------------
-def main(args=None):
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Extract keywords from TXT files (fast mode)")
-    parser.add_argument("-i", "--input", required=True, help="Path to TXT file or folder containing TXT files")
-    parser.add_argument("-o", "--output", required=True, help="Folder to save keyword CSVs")
-    parser.add_argument("-n", "--top_n", type=int, default=1000, help="Number of top keywords to extract")
-
-    args = parser.parse_args()
-
-    extractor = KeywordExtraction(
-        input_path=args.input,
-        output_folder=args.output,
-        top_n=args.top_n
-    )
-    extractor.extract()
-
-
-if __name__ == "__main__":
-    main()

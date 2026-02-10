@@ -154,25 +154,31 @@ To use `txt2phrases`, ensure you have the following installed:
 
 - **Python 3.8+**
 - **Dependencies:**
-  - `argparse`: For CLI argument parsing  
-  - `beautifulsoup4`: For HTML parsing  
-  - `pandas`: For data manipulation and CSV export  
-  - `tqdm`: For progress bars during batch processing  
-  - `transformers`: For AI-powered keyword extraction  
-  - `scikit-learn`: For TF-IDF-based keyword classification  
-  - `torch`: For running NLP models  
+  - `beautifulsoup4>=4.9.0`: For HTML parsing  
+  - `pandas>=1.0.0`: For data manipulation and CSV export  
+  - `tqdm>=4.50.0`: For progress bars during batch processing  
+  - `transformers>=4.0.0`: For AI-powered keyword extraction  
+  - `scikit-learn>=1.0.0`: For TF-IDF-based keyword classification  
+  - `PyPDF2>=2.0.0`: For PDF text extraction
+  - `torch>=1.7.0`: For running NLP models  
 
-Install dependencies with:
+**Important:** Install dependencies before running tests or using the library:
 
 ```bash
 pip install -r requirements.txt
+```
+
+Or install the package with dependencies:
+
+```bash
+pip install -e .
 ```
 
 ---
 
 ## 📚 Documentation
 
-For full documentation and examples, visit the [GitHub repository](https://github.com/semanticClimate/encyclopedia/tree/main/txt2phrases).
+For full documentation and examples, visit the [GitHub repository](https://github.com/semanticClimate/txt2phrases).
 
 ---
 

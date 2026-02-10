@@ -99,45 +99,5 @@ def classify_keywords_split_files(input_dir, output_dir, threshold=0.6, min_freq
     print(f"Saved general_specific_keywords.csv ({len(out_df)} keywords)")
 
 
-def main():
-    """
-    Command-line interface for generating per-chapter specific keywords
-    and a general/specific keywords CSV.
-    """
-    import argparse
-    from .classify_specific import classify_keywords_split_files
-    import os
-    parser = argparse.ArgumentParser(
-        description="Create per-chapter files of TF-IDF-specific keywords "
-                    "and a general/specific keywords CSV"
-    )
-    parser.add_argument(
-        "-i", "--input_dir", required=True,
-        help="Path to folder with chapter CSVs (keyword,count)"
-    )
-    parser.add_argument(
-        "-o", "--output_dir", required=True,
-        help="Path to save per-chapter specific and general/specific keyword files"
-    )
-    parser.add_argument(
-        "-t", "--threshold", type=float, default=0.6,
-        help="TF-IDF threshold for specificity (default: 0.6)"
-    )
-    parser.add_argument(
-        "-f", "--min_freq", type=int, default=5,
-        help="Minimum frequency of keywords to consider (default: 5)"
-    )
-
-    args = parser.parse_args()
-
-    classify_keywords_split_files(
-        input_dir=args.input_dir,
-        output_dir=args.output_dir,
-        threshold=args.threshold,
-        min_freq=args.min_freq
-    )
-
-if __name__ == "__main__":
-    main()
 
 

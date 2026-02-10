@@ -15,8 +15,6 @@ import shutil
 import multiprocessing
 from pathlib import Path
 from tqdm import tqdm
-import subprocess
-import argparse
 import sys
 
 # Add the current package to the path
@@ -99,7 +97,7 @@ def convert_all_pdfs(pdfs, txt_output_dir, workers=4):
         return []
 
     os.makedirs(txt_output_dir, exist_ok=True)
-    print(f"\ Converting {len(pdfs)} PDFs to TXT...")
+    print(f"Converting {len(pdfs)} PDFs to TXT...")
 
     args = [(pdf, txt_output_dir) for pdf in pdfs]
 
@@ -135,48 +133,7 @@ def run_keyword_extraction(input_path: Path, output_dir: Path, top_n: int):
     except Exception as e:
         print(f"Keyword extraction failed: {e}")
 
-# -----------------------------
-# Main Pipeline
-# -----------------------------
-def main(args=None):
-    parser = argparse.ArgumentParser(
-        description="Process PyGetPapers output (PDF → TXT → keyphrases)."
-    )
-    parser.add_argument("-i", "--input", required=True, help="Input folder (PyGetPapers output or PDFs)")
-    parser.add_argument("-o", "--output", required=True, help="Output folder for TXT and keyword CSVs")
-    parser.add_argument("-n", "--num_keywords", type=int, default=100, help="Number of top keywords to extract")
-    
-    if args is None:
-        args = parser.parse_args()
-    else:
-        args = parser.parse_args(args)
 
-    input_path = Path(args.input)
-    output_path = Path(args.output)
-    output_path.mkdir(parents=True, exist_ok=True)
-
-    if detect_pygetpapers_structure(input_path):
-        print("Detected PyGetPapers-style folder structure.")
-    else:
-        print("Standard folder detected.")
-
-    pdfs = find_pdfs(input_path)
-    print(f"Found {len(pdfs)} PDFs.")
-
-    if pdfs:
-        txt_dir = output_path / "txt"
-        converted_txts = convert_all_pdfs(pdfs, txt_dir)
-        print(f"Converted {len(converted_txts)} PDFs to TXT.")
-
-        print("\nRunning keyword extraction...")
-        run_keyword_extraction(txt_dir, output_path, args.num_keywords)
-        print("\nAuto-pipeline complete!")
-    else:
-        print("No PDF files found to process.")
-
-if __name__ == "__main__":
-    multiprocessing.freeze_support()  # Required for Windows
-    main()
 
 
 

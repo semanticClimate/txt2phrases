@@ -1,23 +1,31 @@
 from setuptools import setup, find_packages
+from pathlib import Path
+import re
+
+# Read version from __init__.py (single source of truth)
+parent = Path(__file__).parent
+with open(str(Path(parent, "txt2phrases", "__init__.py"))) as f:
+    content = f.read()
+version = re.search(r'__version__ = ["\']([^"\']+)["\']', content).group(1)
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setup(
     name="txt2phrases",
-    version="1.0.3",
+    version=version,
     author="Udita Agarwal",
     author_email="udita20agarwal@gmail.com",
     description="A comprehensive library for text processing, keyword extraction, and classification from PDF and HTML documents",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/semanticClimate/encyclopedia/tree/main/txt2phrases",
+    url="https://github.com/semanticClimate/txt2phrases",
     packages=find_packages(),
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Science/Research",
         "Intended Audience :: Developers",
-        "License :: OSI Approved :: MIT License",
+        "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.7",
