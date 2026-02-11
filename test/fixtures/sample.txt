@@ -1,0 +1,8 @@
+This is a sample text document for testing keyword extraction.
+It contains multiple sentences about various topics.
+Climate change is a critical issue facing humanity today.
+Machine learning and artificial intelligence are transforming many industries.
+Natural language processing enables computers to understand human language.
+The greenhouse effect is caused by increased levels of carbon dioxide.
+Renewable energy sources like solar and wind power are becoming more affordable.
+Deep learning models can extract keyphrases from text documents effectively.
