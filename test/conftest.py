@@ -123,13 +123,23 @@ def sample_pdf_path(fixtures_dir):
         if amilib_pdfs and len(amilib_pdfs) > 0:
             # Use the first PDF from amilib
             import shutil
-            shutil.copy2(amilib_pdfs[0], pdf_path)
+            try:
+                # Try copy2 first (preserves metadata)
+                shutil.copy2(amilib_pdfs[0], pdf_path)
+            except (PermissionError, OSError):
+                # Fallback to copy if metadata copying fails (e.g., macOS file flags)
+                shutil.copy(amilib_pdfs[0], pdf_path)
         else:
             # Fallback: try system PDFs
             system_pdf = _find_system_pdf()
             if system_pdf and system_pdf.exists():
                 import shutil
-                shutil.copy2(system_pdf, pdf_path)
+                try:
+                    # Try copy2 first (preserves metadata)
+                    shutil.copy2(system_pdf, pdf_path)
+                except (PermissionError, OSError):
+                    # Fallback to copy if metadata copying fails (e.g., macOS file flags)
+                    shutil.copy(system_pdf, pdf_path)
             else:
                 # Last resort: create a minimal valid PDF
                 _create_sample_pdf(pdf_path)
@@ -155,7 +165,12 @@ def sample_pdf_paths(fixtures_dir):
             if not _is_valid_pdf(fixture_pdf):
                 if fixture_pdf.exists():
                     fixture_pdf.unlink()
-                shutil.copy2(amilib_pdf, fixture_pdf)
+                try:
+                    # Try copy2 first (preserves metadata)
+                    shutil.copy2(amilib_pdf, fixture_pdf)
+                except (PermissionError, OSError):
+                    # Fallback to copy if metadata copying fails (e.g., macOS file flags)
+                    shutil.copy(amilib_pdf, fixture_pdf)
             pdf_paths.append(fixture_pdf)
     else:
         # Fallback: use single sample PDF (create it if needed)
@@ -166,7 +181,12 @@ def sample_pdf_paths(fixtures_dir):
             system_pdf = _find_system_pdf()
             if system_pdf and system_pdf.exists():
                 import shutil
-                shutil.copy2(system_pdf, single_pdf)
+                try:
+                    # Try copy2 first (preserves metadata)
+                    shutil.copy2(system_pdf, single_pdf)
+                except (PermissionError, OSError):
+                    # Fallback to copy if metadata copying fails (e.g., macOS file flags)
+                    shutil.copy(system_pdf, single_pdf)
             else:
                 _create_sample_pdf(single_pdf)
         pdf_paths.append(single_pdf)
