@@ -165,7 +165,7 @@ def main(args=None):
     print(f"Found {len(pdfs)} PDFs.")
 
     if pdfs:
-        txt_dir = output_path.joinpath("txt")
+        txt_dir = Path(output_path, "txt")
         converted_txts = convert_all_pdfs(pdfs, txt_dir)
         print(f"Converted {len(converted_txts)} PDFs to TXT.")
 

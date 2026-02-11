@@ -4,6 +4,7 @@ Pytest configuration and shared fixtures for txt2phrases tests.
 import os
 import tempfile
 import shutil
+import glob
 from pathlib import Path
 import pytest
 
@@ -41,14 +42,136 @@ def fixtures_dir():
     return TEST_FIXTURES_DIR
 
 
+def _find_amilib_pdfs():
+    """Find PDF files from ../amilib directory for testing."""
+    amilib_dir = Path(__file__).parent.parent.parent / "amilib"
+    pdfs = []
+    
+    # Priority order: temp directory, then test/resources
+    search_paths = [
+        amilib_dir / "temp" / "*.pdf",
+        amilib_dir / "test" / "resources" / "pygetpapers" / "wildlife" / "PMC*" / "fulltext.pdf",
+    ]
+    
+    for pattern in search_paths:
+        try:
+            found_pdfs = list(pattern.parent.glob(pattern.name))
+            for pdf_path in found_pdfs:
+                if pdf_path.exists() and pdf_path.stat().st_size > 0:
+                    pdfs.append(pdf_path)
+                    if len(pdfs) >= 3:  # Get up to 3 PDFs
+                        return pdfs
+        except Exception:
+            continue
+    
+    return pdfs if pdfs else None
+
+
+def _find_system_pdf():
+    """Find a real PDF file on the system for testing (fallback)."""
+    # Common locations where PDFs might exist
+    search_paths = [
+        "/System/Library/Assistant/UIPlugins/MailUI.siriUIBundle/Contents/Resources/*.pdf",
+        "/Library/Application Support/Apple/BezelServices/**/*.pdf",
+        "/Applications/**/*.pdf",
+        "/usr/share/**/*.pdf",
+    ]
+    
+    for pattern in search_paths:
+        try:
+            found_pdfs = glob.glob(pattern, recursive=True)
+            if found_pdfs:
+                # Return first readable PDF
+                for pdf in found_pdfs:
+                    pdf_path = Path(pdf)
+                    if pdf_path.exists() and pdf_path.stat().st_size > 0:
+                        return pdf_path
+        except Exception:
+            continue
+    
+    return None
+
+
+def _is_valid_pdf(pdf_path):
+    """Check if a file is a valid PDF by reading its header."""
+    try:
+        if not pdf_path.exists() or pdf_path.stat().st_size < 100:
+            return False
+        with open(pdf_path, 'rb') as f:
+            header = f.read(10)
+            return header.startswith(b'%PDF')
+    except Exception:
+        return False
+
+
 @pytest.fixture(scope="session")
 def sample_pdf_path(fixtures_dir):
     """Path to sample PDF file."""
     pdf_path = Path(fixtures_dir, "sample.pdf")
-    if not pdf_path.exists():
-        # Create a minimal valid PDF if it doesn't exist
-        _create_sample_pdf(pdf_path)
+    
+    # Check if PDF exists and is valid, if not, copy a real one
+    if not _is_valid_pdf(pdf_path):
+        # Remove corrupted/invalid PDF if it exists
+        if pdf_path.exists():
+            pdf_path.unlink()
+        
+        # Ensure fixtures directory exists
+        fixtures_dir.mkdir(parents=True, exist_ok=True)
+        
+        # First try to find PDFs from ../amilib
+        amilib_pdfs = _find_amilib_pdfs()
+        if amilib_pdfs and len(amilib_pdfs) > 0:
+            # Use the first PDF from amilib
+            import shutil
+            shutil.copy2(amilib_pdfs[0], pdf_path)
+        else:
+            # Fallback: try system PDFs
+            system_pdf = _find_system_pdf()
+            if system_pdf and system_pdf.exists():
+                import shutil
+                shutil.copy2(system_pdf, pdf_path)
+            else:
+                # Last resort: create a minimal valid PDF
+                _create_sample_pdf(pdf_path)
+    
     return pdf_path
+
+
+@pytest.fixture(scope="session")
+def sample_pdf_paths(fixtures_dir):
+    """Return list of up to 3 PDF paths from ../amilib for testing."""
+    pdf_paths = []
+    amilib_pdfs = _find_amilib_pdfs()
+    
+    # Ensure fixtures directory exists
+    fixtures_dir.mkdir(parents=True, exist_ok=True)
+    
+    if amilib_pdfs and len(amilib_pdfs) > 0:
+        # Copy up to 3 PDFs to fixtures directory
+        import shutil
+        for i, amilib_pdf in enumerate(amilib_pdfs[:3]):
+            fixture_pdf = Path(fixtures_dir, f"sample_{i+1}.pdf")
+            # Only copy if file doesn't exist or is invalid
+            if not _is_valid_pdf(fixture_pdf):
+                if fixture_pdf.exists():
+                    fixture_pdf.unlink()
+                shutil.copy2(amilib_pdf, fixture_pdf)
+            pdf_paths.append(fixture_pdf)
+    else:
+        # Fallback: use single sample PDF (create it if needed)
+        single_pdf = Path(fixtures_dir, "sample.pdf")
+        if not _is_valid_pdf(single_pdf):
+            if single_pdf.exists():
+                single_pdf.unlink()
+            system_pdf = _find_system_pdf()
+            if system_pdf and system_pdf.exists():
+                import shutil
+                shutil.copy2(system_pdf, single_pdf)
+            else:
+                _create_sample_pdf(single_pdf)
+        pdf_paths.append(single_pdf)
+    
+    return pdf_paths
 
 
 @pytest.fixture(scope="session")
@@ -98,19 +221,45 @@ def sample_keywords_csv_chapter2(fixtures_dir):
 
 def _create_sample_pdf(pdf_path):
     """Create a minimal valid PDF file for testing."""
-    try:
-        from PyPDF2 import PdfWriter
-        writer = PdfWriter()
-        page = writer.add_page()
-        page.add_text("This is a sample PDF document for testing.")
-        page.add_text("It contains multiple lines of text.")
-        page.add_text("Climate change is an important topic.")
-        with open(pdf_path, "wb") as f:
-            writer.write(f)
-    except Exception as e:
-        # Fallback: create a simple text file with .pdf extension
-        # This will fail PDF parsing tests but allows other tests to run
-        pdf_path.write_text("Sample PDF content\nLine 2\nClimate change")
+    # Create a minimal valid PDF structure manually
+    # This is a valid PDF that PyPDF2 can read
+    minimal_pdf = b"""%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >> >>
+endobj
+4 0 obj
+<< /Length 120 >>
+stream
+BT
+/F1 12 Tf
+100 700 Td
+(This is a sample PDF document for testing.) Tj
+0 -20 Td
+(It contains multiple lines of text.) Tj
+0 -20 Td
+(Climate change is an important topic.) Tj
+ET
+endstream
+endobj
+xref
+0 5
+0000000000 65535 f
+0000000009 00000 n
+0000000058 00000 n
+0000000115 00000 n
+0000000307 00000 n
+trailer
+<< /Size 5 /Root 1 0 R >>
+startxref
+427
+%%EOF"""
+    pdf_path.write_bytes(minimal_pdf)
 
 
 def _create_sample_html(html_path):

@@ -21,15 +21,15 @@ class TestCliPdf2Txt:
         # Check file was created
         txt_files = list(temp_output_dir.glob("*.txt"))
         assert len(txt_files) > 0, "Length should be greater than 0"
-    def test_pdf2txt_directory(self, fixtures_dir, temp_output_dir, capsys):
+    def test_pdf2txt_directory(self, sample_pdf_path, temp_output_dir, capsys):
         """Test pdf2txt command with directory."""
         # Create directory with PDFs
-        pdf_dir = temp_output_dir.joinpath("pdf_input")
+        pdf_dir = Path(temp_output_dir, "pdf_input")
         pdf_dir.mkdir()
         
-        if (fixtures_dir.joinpath("sample.pdf")).exists():
-            import shutil
-            shutil.copy(fixtures_dir.joinpath("sample.pdf"), pdf_dir.joinpath("test.pdf"))
+        # Use PDF from amilib
+        import shutil
+        shutil.copy(sample_pdf_path, Path(pdf_dir, "test.pdf"))
         
         sys.argv = ["txt2phrases", "pdf2txt", "-i", str(pdf_dir), "-o", str(temp_output_dir)]
         main()
@@ -47,7 +47,7 @@ class TestCliPdf2Txt:
 
     def test_pdf2txt_invalid_path(self, temp_output_dir, capsys):
         """Test pdf2txt command with invalid path."""
-        invalid_path = temp_output_dir.joinpath("nonexistent.pdf")
+        invalid_path = Path(temp_output_dir, "nonexistent.pdf")
         sys.argv = ["txt2phrases", "pdf2txt", "-i", str(invalid_path), "-o", str(temp_output_dir)]
         
         main()
@@ -71,11 +71,11 @@ class TestCliHtml2Txt:
     def test_html2txt_directory(self, temp_output_dir, capsys):
         """Test html2txt command with directory."""
         # Create directory with HTML files
-        html_dir = temp_output_dir.joinpath("html_input")
+        html_dir = Path(temp_output_dir, "html_input")
         html_dir.mkdir()
         
-        (html_dir.joinpath("test1.html")).write_text("<html><body><p>Test 1</p></body></html>")
-        (html_dir.joinpath("test2.html")).write_text("<html><body><p>Test 2</p></body></html>")
+        (Path(html_dir, "test1.html")).write_text("<html><body><p>Test 1</p></body></html>")
+        (Path(html_dir, "test2.html")).write_text("<html><body><p>Test 2</p></body></html>")
         
         sys.argv = ["txt2phrases", "html2txt", "-i", str(html_dir), "-o", str(temp_output_dir)]
         main()
@@ -96,7 +96,7 @@ class TestCliKeyphrases:
     @pytest.mark.requires_model
     def test_keyphrases_single_file(self, sample_txt_path, temp_output_dir, capsys):
         """Test keyphrases command with single file."""
-        sys.argv = ["txt2phrases", "keyphrases", "-i", str(sample_txt_path), "-o"]
+        sys.argv = ["txt2phrases", "keyphrases", "-i", str(sample_txt_path), "-o", str(temp_output_dir)]
         main()
         
         # Check CSV was created
@@ -118,7 +118,7 @@ class TestCliKeyphrases:
     @pytest.mark.requires_model
     def test_keyphrases_custom_top_n(self, sample_txt_path, temp_output_dir, capsys):
         """Test keyphrases command with custom top_n."""
-        sys.argv = ["txt2phrases", "keyphrases", "-i", str(sample_txt_path), "-o"]
+        sys.argv = ["txt2phrases", "keyphrases", "-i", str(sample_txt_path), "-o", str(temp_output_dir), "-n", "5"]
         
         main()
         
@@ -140,19 +140,19 @@ class TestCliAuto:
 
     @pytest.mark.integration
     @pytest.mark.requires_model
-    def test_auto_command(self, fixtures_dir, temp_output_dir, capsys):
+    def test_auto_command(self, sample_pdf_path, temp_output_dir, capsys):
         """Test auto command (full pipeline)."""
         # Create input directory with PDF
-        input_dir = temp_output_dir.joinpath("input")
+        input_dir = Path(temp_output_dir, "input")
         input_dir.mkdir()
         
-        if (fixtures_dir.joinpath("sample.pdf")).exists():
-            import shutil
-            shutil.copy(fixtures_dir.joinpath("sample.pdf"), input_dir.joinpath("test.pdf"))
+        # Use PDF from amilib
+        import shutil
+        shutil.copy(sample_pdf_path, Path(input_dir, "test.pdf"))
         
-        output_dir = temp_output_dir.joinpath("output")
+        output_dir = Path(temp_output_dir, "output")
         
-        sys.argv = ["txt2phrases", "auto", "-i", str(input_dir), "-o"]
+        sys.argv = ["txt2phrases", "auto", "-i", str(input_dir), "-o", str(output_dir)]
         main()
         
         # Check output directory was created

@@ -8,7 +8,15 @@ def convert_pdf_to_text(pdf_path, output_folder):
     Convert a single PDF file to a TXT file and save it.
     """
     try:
-        reader = PdfReader(pdf_path)
+        from pathlib import Path
+        
+        # Convert to Path if needed and ensure it's a string for PdfReader
+        pdf_path_obj = Path(pdf_path)
+        if not pdf_path_obj.exists():
+            print(f"[ERROR] PDF file not found: {pdf_path}")
+            return None
+        
+        reader = PdfReader(str(pdf_path_obj))
         text = ""
 
         for page in reader.pages:
@@ -17,14 +25,14 @@ def convert_pdf_to_text(pdf_path, output_folder):
                 text += page_text + "\n"
 
         # Ensure output folder exists
-        os.makedirs(output_folder, exist_ok=True)
+        output_path = Path(output_folder)
+        output_path.mkdir(parents=True, exist_ok=True)
         
-        base_name = os.path.splitext(os.path.basename(pdf_path))[0]
-        txt_path = os.path.join(output_folder, base_name + ".txt")
+        base_name = pdf_path_obj.stem
+        txt_path = Path(output_path, f"{base_name}.txt")
 
-        with open(txt_path, "w", encoding="utf-8") as f:
-            f.write(text)
-        return txt_path
+        txt_path.write_text(text, encoding="utf-8")
+        return str(txt_path)
     except Exception as e:
         print(f"[ERROR] Failed to process {pdf_path}: {e}")
         return None

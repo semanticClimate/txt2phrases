@@ -4,6 +4,7 @@ Unit tests for html2txt module.
 """
 import os
 import pytest
+import sys
 from pathlib import Path
 from txt2phrases.html2txt import convert_html_to_text
 from txt2phrases.cli import main
@@ -37,7 +38,7 @@ class TestConvertHtmlToText:
         <script>console.log("test");</script>
         <p>This is visible text.</p>
         </body></html>"""
-        html_file = temp_output_dir.joinpath("test.html")
+        html_file = Path(temp_output_dir, "test.html")
         html_file.write_text(html_content, encoding="utf-8")
         
         result = convert_html_to_text(html_file, temp_output_dir)
@@ -52,7 +53,7 @@ class TestConvertHtmlToText:
         </head><body>
         <p>Visible content</p>
         </body></html>"""
-        html_file = temp_output_dir.joinpath("test.html")
+        html_file = Path(temp_output_dir, "test.html")
         html_file.write_text(html_content, encoding="utf-8")
         
         result = convert_html_to_text(html_file, temp_output_dir)
@@ -68,7 +69,7 @@ class TestConvertHtmlToText:
         <tr><td>Data</td></tr>
         </table>
         </body></html>"""
-        html_file = temp_output_dir.joinpath("test.html")
+        html_file = Path(temp_output_dir, "test.html")
         html_file.write_text(html_content, encoding="utf-8")
         
         result = convert_html_to_text(html_file, temp_output_dir)
@@ -79,7 +80,7 @@ class TestConvertHtmlToText:
     def test_empty_html(self, temp_output_dir):
         """Test handling of empty HTML."""
         html_content = """<html><body></body></html>"""
-        html_file = temp_output_dir.joinpath("empty.html")
+        html_file = Path(temp_output_dir, "empty.html")
         html_file.write_text(html_content, encoding="utf-8")
         
         result = convert_html_to_text(html_file, temp_output_dir)
@@ -88,7 +89,7 @@ class TestConvertHtmlToText:
     def test_malformed_html(self, temp_output_dir):
         """Test handling of malformed HTML."""
         html_content = """<html><body><p>Unclosed tag</p></body></html>"""
-        html_file = temp_output_dir.joinpath("malformed.html")
+        html_file = Path(temp_output_dir, "malformed.html")
         html_file.write_text(html_content, encoding="utf-8")
         
         # BeautifulSoup should handle malformed HTML gracefully
@@ -100,7 +101,7 @@ class TestConvertHtmlToText:
         <p>Special chars: aaaaaa cnn uu</p>
         <p>Symbols: (c) (R) (TM) EUR GBP JPY</p>
         </body></html>"""
-        html_file = temp_output_dir.joinpath("special.html")
+        html_file = Path(temp_output_dir, "special.html")
         html_file.write_text(html_content, encoding="utf-8")
         
         result = convert_html_to_text(html_file, temp_output_dir)
@@ -109,7 +110,7 @@ class TestConvertHtmlToText:
         assert "àáâãäå" in content or len(content) > 0, "Length should be greater than 0"
     def test_invalid_file(self, temp_output_dir):
         """Test handling of invalid file path."""
-        invalid_path = temp_output_dir.joinpath("nonexistent.html")
+        invalid_path = Path(temp_output_dir, "nonexistent.html")
         result = convert_html_to_text(invalid_path, temp_output_dir)
         
         # Should return None or handle gracefully
@@ -119,27 +120,27 @@ class TestHtml2TxtMain:
 
     def test_main_single_file(self, sample_html_path, temp_output_dir, capsys):
         """Test main function with single HTML file."""
-        args = ["-i", str(sample_html_path), "-o", str(temp_output_dir)]
-        main(args)
+        sys.argv = ["txt2phrases", "html2txt", "-i", str(sample_html_path), "-o", str(temp_output_dir)]
+        main()
         
         # Check output
         captured = capsys.readouterr()
-        assert "Converting" in captured.out or "Saved" in captured.out or "DONE" in captured.out, "Expected message not found in captured output"
+        assert "Converted" in captured.out or "Converting" in captured.out or "Saved" in captured.out or "DONE" in captured.out, "Expected message not found in captured output"
         # Check file was created"""
         txt_files = list(temp_output_dir.glob("*.txt"))
         assert len(txt_files) > 0, "Length should be greater than 0"
     def test_main_directory(self, fixtures_dir, temp_output_dir, capsys):
         """Test main function with directory of HTML files."""
         # Create a directory with HTMLs
-        html_dir = temp_output_dir.joinpath("html_input")
+        html_dir = Path(temp_output_dir, "html_input")
         html_dir.mkdir()
         
         # Create sample HTML files
-        html_dir.joinpath("test1.html").write_text("<html><body><p>Test 1</p></body></html>")
-        html_dir.joinpath("test2.html").write_text("<html><body><p>Test 2</p></body></html>")
+        Path(html_dir, "test1.html").write_text("<html><body><p>Test 1</p></body></html>")
+        Path(html_dir, "test2.html").write_text("<html><body><p>Test 2</p></body></html>")
         
-        args = ["-i", str(html_dir), "-o", str(temp_output_dir)]
-        main(args)
+        sys.argv = ["txt2phrases", "html2txt", "-i", str(html_dir), "-o", str(temp_output_dir)]
+        main()
         
         captured = capsys.readouterr()
         assert "Found" in captured.out or "All HTML files converted" in captured.out, "Expected message not found in captured output"
@@ -148,15 +149,15 @@ class TestHtml2TxtMain:
         assert len(txt_files) >= 2, "Length should be greater than 0"
     def test_main_invalid_input(self, temp_output_dir, capsys):
         """Test main function with invalid input."""
-        invalid_path = temp_output_dir.joinpath("nonexistent.html")
-        args = ["-i", str(invalid_path), "-o", str(temp_output_dir)]
-        main(args)
+        invalid_path = Path(temp_output_dir, "nonexistent.html")
+        sys.argv = ["txt2phrases", "html2txt", "-i", str(invalid_path), "-o", str(temp_output_dir)]
+        main()
         
         captured = capsys.readouterr()
-        assert "ERROR" in captured.out or "valid" in captured.out.lower(), "Expected message not found in captured output"
+        assert "ERROR" in captured.out or "valid" in captured.out.lower() or "No HTML files found" in captured.out, "Expected message not found in captured output"
     def test_main_nonexistent_output_dir(self, sample_html_path, temp_output_dir):
         """Test that main creates output directory if it doesn't exist."""
-        new_output = temp_output_dir.joinpath("new_output_dir")
-        args = ["-i", str(sample_html_path), "-o", str(new_output)]
-        main(args)
+        new_output = Path(temp_output_dir, "new_output_dir")
+        sys.argv = ["txt2phrases", "html2txt", "-i", str(sample_html_path), "-o", str(new_output)]
+        main()
         assert new_output.exists(), "new_output should exist"

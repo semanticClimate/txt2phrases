@@ -6,6 +6,11 @@ def convert_html_to_text(html_path, output_folder):
     Convert a single HTML file to plain text and save it.
     """
     try:
+        from pathlib import Path
+        
+        # Ensure output folder exists
+        Path(output_folder).mkdir(parents=True, exist_ok=True)
+        
         with open(html_path, "r", encoding="utf-8") as f:
             html_content = f.read()
 
