@@ -43,7 +43,7 @@ def fixtures_dir():
 
 
 def _find_amilib_pdfs():
-    """Find PDF files from ../amilib directory for testing."""
+    """Find PDF files from ../amilib directory for testing that have extractable text."""
     amilib_dir = Path(__file__).parent.parent.parent / "amilib"
     pdfs = []
     
@@ -58,9 +58,11 @@ def _find_amilib_pdfs():
             found_pdfs = list(pattern.parent.glob(pattern.name))
             for pdf_path in found_pdfs:
                 if pdf_path.exists() and pdf_path.stat().st_size > 0:
-                    pdfs.append(pdf_path)
-                    if len(pdfs) >= 3:  # Get up to 3 PDFs
-                        return pdfs
+                    # Only include PDFs with extractable text
+                    if _has_extractable_text(pdf_path):
+                        pdfs.append(pdf_path)
+                        if len(pdfs) >= 3:  # Get up to 3 PDFs
+                            return pdfs
         except Exception:
             continue
     
@@ -68,7 +70,7 @@ def _find_amilib_pdfs():
 
 
 def _find_system_pdf():
-    """Find a real PDF file on the system for testing (fallback)."""
+    """Find a real PDF file on the system for testing (fallback) that has extractable text."""
     # Common locations where PDFs might exist
     search_paths = [
         "/System/Library/Assistant/UIPlugins/MailUI.siriUIBundle/Contents/Resources/*.pdf",
@@ -81,11 +83,12 @@ def _find_system_pdf():
         try:
             found_pdfs = glob.glob(pattern, recursive=True)
             if found_pdfs:
-                # Return first readable PDF
+                # Return first readable PDF with extractable text
                 for pdf in found_pdfs:
                     pdf_path = Path(pdf)
                     if pdf_path.exists() and pdf_path.stat().st_size > 0:
-                        return pdf_path
+                        if _has_extractable_text(pdf_path):
+                            return pdf_path
         except Exception:
             continue
     
@@ -104,13 +107,29 @@ def _is_valid_pdf(pdf_path):
         return False
 
 
+def _has_extractable_text(pdf_path, min_text_length=50):
+    """Check if a PDF has extractable text content."""
+    try:
+        from PyPDF2 import PdfReader
+        reader = PdfReader(str(pdf_path))
+        text = ""
+        # Check first 3 pages for text
+        for page in reader.pages[:3]:
+            page_text = page.extract_text()
+            if page_text:
+                text += page_text
+        return len(text.strip()) >= min_text_length
+    except Exception:
+        return False
+
+
 @pytest.fixture(scope="session")
 def sample_pdf_path(fixtures_dir):
-    """Path to sample PDF file."""
+    """Path to sample PDF file with extractable text."""
     pdf_path = Path(fixtures_dir, "sample.pdf")
     
-    # Check if PDF exists and is valid, if not, copy a real one
-    if not _is_valid_pdf(pdf_path):
+    # Check if PDF exists, is valid, and has extractable text
+    if not _is_valid_pdf(pdf_path) or not _has_extractable_text(pdf_path):
         # Remove corrupted/invalid PDF if it exists
         if pdf_path.exists():
             pdf_path.unlink()
@@ -121,7 +140,7 @@ def sample_pdf_path(fixtures_dir):
         # First try to find PDFs from ../amilib
         amilib_pdfs = _find_amilib_pdfs()
         if amilib_pdfs and len(amilib_pdfs) > 0:
-            # Use the first PDF from amilib
+            # Use the first PDF from amilib (already validated to have extractable text)
             import shutil
             try:
                 # Try copy2 first (preserves metadata)
@@ -141,7 +160,7 @@ def sample_pdf_path(fixtures_dir):
                     # Fallback to copy if metadata copying fails (e.g., macOS file flags)
                     shutil.copy(system_pdf, pdf_path)
             else:
-                # Last resort: create a minimal valid PDF
+                # Last resort: create a minimal valid PDF with extractable text
                 _create_sample_pdf(pdf_path)
     
     return pdf_path
@@ -149,7 +168,7 @@ def sample_pdf_path(fixtures_dir):
 
 @pytest.fixture(scope="session")
 def sample_pdf_paths(fixtures_dir):
-    """Return list of up to 3 PDF paths from ../amilib for testing."""
+    """Return list of up to 3 PDF paths from ../amilib for testing with extractable text."""
     pdf_paths = []
     amilib_pdfs = _find_amilib_pdfs()
     
@@ -157,12 +176,12 @@ def sample_pdf_paths(fixtures_dir):
     fixtures_dir.mkdir(parents=True, exist_ok=True)
     
     if amilib_pdfs and len(amilib_pdfs) > 0:
-        # Copy up to 3 PDFs to fixtures directory
+        # Copy up to 3 PDFs to fixtures directory (already validated to have extractable text)
         import shutil
         for i, amilib_pdf in enumerate(amilib_pdfs[:3]):
             fixture_pdf = Path(fixtures_dir, f"sample_{i+1}.pdf")
-            # Only copy if file doesn't exist or is invalid
-            if not _is_valid_pdf(fixture_pdf):
+            # Only copy if file doesn't exist, is invalid, or doesn't have extractable text
+            if not _is_valid_pdf(fixture_pdf) or not _has_extractable_text(fixture_pdf):
                 if fixture_pdf.exists():
                     fixture_pdf.unlink()
                 try:
@@ -175,7 +194,7 @@ def sample_pdf_paths(fixtures_dir):
     else:
         # Fallback: use single sample PDF (create it if needed)
         single_pdf = Path(fixtures_dir, "sample.pdf")
-        if not _is_valid_pdf(single_pdf):
+        if not _is_valid_pdf(single_pdf) or not _has_extractable_text(single_pdf):
             if single_pdf.exists():
                 single_pdf.unlink()
             system_pdf = _find_system_pdf()
