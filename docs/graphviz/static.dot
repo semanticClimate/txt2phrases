@@ -1,0 +1,50 @@
+// txt2phrases – static structure (modules and dependencies)
+// Render: dot -Tsvg -o static.svg static.dot
+
+digraph static {
+    rankdir=TB;
+    node [shape=box, fontname="Helvetica", fontsize=11];
+    edge [fontname="Helvetica", fontsize=10];
+
+    subgraph cluster_package {
+        label="txt2phrases package";
+        fontsize=12;
+
+        cli [label="cli\n(main entry)"];
+        pdf2txt [label="pdf2txt\nconvert_pdf_to_text()"];
+        html2txt [label="html2txt\nconvert_html_to_text()"];
+        keyword [label="keyword\nKeywordExtraction\nKeyphraseExtractionPipeline"];
+        merge [label="merge\nmerge_keyphrase_csvs()"];
+        pygetpaper [label="pygetpaper\nauto pipeline\n(find PDFs → TXT → keyphrases)"];
+        classify [label="classify_specific\nclassify_keywords_split_files()"];
+    }
+
+    subgraph cluster_external {
+        label="External";
+        fontsize=12;
+        PyPDF2 [label="PyPDF2"];
+        BeautifulSoup [label="BeautifulSoup"];
+        transformers [label="transformers\n(Hugging Face)"];
+        pandas [label="pandas"];
+        sklearn [label="scikit-learn\n(TF-IDF)"];
+    }
+
+    // CLI dispatches to modules
+    cli -> pdf2txt [label="pdf2txt"];
+    cli -> html2txt [label="html2txt"];
+    cli -> keyword [label="keyphrases"];
+    cli -> pygetpaper [label="auto"];
+
+    // Auto pipeline uses pdf2txt and keyword
+    pygetpaper -> pdf2txt;
+    pygetpaper -> keyword;
+
+    // Module → external deps
+    pdf2txt -> PyPDF2;
+    html2txt -> BeautifulSoup;
+    keyword -> transformers;
+    keyword -> pandas;
+    merge -> pandas;
+    classify -> pandas;
+    classify -> sklearn;
+}

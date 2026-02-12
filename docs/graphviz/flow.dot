@@ -1,0 +1,45 @@
+// txt2phrases – data flow (pipelines and file formats)
+// Render: dot -Tsvg -o flow.svg flow.dot
+
+digraph flow {
+    rankdir=LR;
+    node [fontname="Helvetica", fontsize=10];
+    edge [fontname="Helvetica", fontsize=10];
+
+    // File/form nodes (ellipse)
+    node [shape=ellipse, style=filled, fillcolor=lightyellow];
+    PDF [label="PDF(s)"];
+    HTML [label="HTML(s)"];
+    TXT [label=".txt"];
+    CSV [label="*_keywords.csv"];
+    merged [label="merged.csv\n(aggregated)"];
+    specific [label="*_specific_keywords.csv\ngeneral_specific_keywords.csv"];
+
+    // Process nodes (box)
+    node [shape=box, style="rounded,filled", fillcolor=lightblue];
+    pdf2txt_cmd [label="pdf2txt"];
+    html2txt_cmd [label="html2txt"];
+    keyphrases_cmd [label="keyphrases"];
+    merge_cmd [label="merge\n(script)"];
+    auto_cmd [label="auto"];
+    classify_cmd [label="classify_specific\n(Python)"];
+
+    // Flows: document conversion
+    PDF -> pdf2txt_cmd -> TXT;
+    HTML -> html2txt_cmd -> TXT;
+
+    // Flow: keyphrase extraction
+    TXT -> keyphrases_cmd -> CSV;
+
+    // Flow: merge (scripts or future CLI)
+    CSV -> merge_cmd -> merged;
+
+    // Flow: auto (PDF or PyGetPapers dir → TXT + CSV)
+    PDF -> auto_cmd;
+    auto_cmd -> TXT [label="convert"];
+    auto_cmd -> CSV [label="keyphrases"];
+
+    // Flow: classification (optional)
+    CSV -> classify_cmd -> specific;
+
+}
