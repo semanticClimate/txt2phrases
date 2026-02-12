@@ -15,10 +15,6 @@ import shutil
 import multiprocessing
 from pathlib import Path
 from tqdm import tqdm
-import sys
-
-# Add the current package to the path
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from txt2phrases.pdf2txt import convert_pdf_to_text
 from txt2phrases.keyword import KeywordExtraction

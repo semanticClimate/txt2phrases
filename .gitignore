@@ -140,5 +140,5 @@ Thumbs.db
 # *.pdf
 # *.html
 
-# Test outputs
-temp/tests/
+# Test and script outputs (inspectable after run, not committed)
+temp/

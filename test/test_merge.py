@@ -50,7 +50,7 @@ class TestMergeKeyphraseCsvsAggregation:
     def test_two_csvs_no_overlap_concatenation(self, temp_output_dir):
         """Two CSVs with no overlapping keywords: output has all rows, counts unchanged."""
         dir_path = Path(temp_output_dir, "inputs")
-        dir_path.mkdir()
+        dir_path.mkdir(parents=True, exist_ok=True)
         Path(dir_path, "a_keywords.csv").write_text("keyword,count\na,1\nb,2\n")
         Path(dir_path, "b_keywords.csv").write_text("keyword,count\nc,3\n")
         output_path = Path(temp_output_dir, "merged.csv")
@@ -65,7 +65,7 @@ class TestMergeKeyphraseCsvsAggregation:
     def test_two_csvs_overlapping_keywords_aggregated(self, temp_output_dir):
         """Two CSVs with overlapping keywords: counts are summed per keyword."""
         dir_path = Path(temp_output_dir, "inputs")
-        dir_path.mkdir()
+        dir_path.mkdir(parents=True, exist_ok=True)
         Path(dir_path, "f1.csv").write_text("keyword,count\na,1\nb,2\n")
         Path(dir_path, "f2.csv").write_text("keyword,count\na,3\nb,1\n")
         output_path = Path(temp_output_dir, "merged.csv")
@@ -116,7 +116,7 @@ class TestMergeKeyphraseCsvsDirectoryInput:
     def test_directory_input_merges_all_keyword_csvs(self, temp_output_dir):
         """When input is a directory path, all *_keywords.csv (or *.csv) in it are merged."""
         dir_path = Path(temp_output_dir, "keyword_dir")
-        dir_path.mkdir()
+        dir_path.mkdir(parents=True, exist_ok=True)
         Path(dir_path, "ch1_keywords.csv").write_text("keyword,count\nalpha,2\nbeta,1\n")
         Path(dir_path, "ch2_keywords.csv").write_text("keyword,count\nalpha,3\ngamma,4\n")
         output_path = Path(temp_output_dir, "merged.csv")

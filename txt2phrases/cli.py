@@ -3,9 +3,6 @@ import argparse
 import sys
 import os
 
-# Add the parent directory to Python path to allow imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-
 from txt2phrases.pdf2txt import convert_pdf_to_text
 from txt2phrases.html2txt import convert_html_to_text
 from txt2phrases.keyword import KeywordExtraction

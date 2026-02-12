@@ -1,36 +1,36 @@
 """
 Pytest configuration and shared fixtures for txt2phrases tests.
+
+Test output is written under temp/tests/<module>/<test_name>/ so that
+results persist for inspection after a run (temp/ is not committed).
 """
-import tempfile
-import shutil
 from pathlib import Path
 import pytest
 
 
 # Root directory of the project
 PROJECT_ROOT = Path(__file__).parent.parent
-TEST_OUTPUT_DIR = Path(PROJECT_ROOT, "temp", "tests")
+TEMP_DIR = Path(PROJECT_ROOT, "temp")
+TEST_OUTPUT_DIR = Path(TEMP_DIR, "tests")
 TEST_FIXTURES_DIR = Path(Path(__file__).parent, "fixtures")
 
 
 @pytest.fixture(scope="session")
 def test_output_dir():
-    """Create and return the test output directory."""
+    """Create and return the test output directory (persisted for inspection)."""
     TEST_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    yield TEST_OUTPUT_DIR
-    # Cleanup after all tests
-    if TEST_OUTPUT_DIR.exists():
-        shutil.rmtree(TEST_OUTPUT_DIR, ignore_errors=True)
+    return TEST_OUTPUT_DIR
 
 
 @pytest.fixture(scope="function")
-def temp_output_dir(test_output_dir):
-    """Create a temporary output directory for each test."""
-    temp_dir = tempfile.mkdtemp(dir=str(test_output_dir))
-    yield Path(temp_dir)
-    # Cleanup after test
-    if Path(temp_dir).exists():
-        shutil.rmtree(temp_dir, ignore_errors=True)
+def temp_output_dir(test_output_dir, request):
+    """Per-test output directory under temp/tests/<module>/<test_name>/ (persisted for inspection)."""
+    module_name = request.module.__name__
+    # Sanitize test name for filesystem (e.g. parametrized names)
+    test_name = request.node.name.replace("::", "_").replace("[", "_").replace("]", "")
+    path = Path(test_output_dir, module_name, test_name)
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 
 
 @pytest.fixture(scope="session")
