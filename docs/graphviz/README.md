@@ -1,6 +1,6 @@
 # Graphviz diagrams
 
-Diagrams for txt2phrases structure and data flow.
+Diagrams for txt2phrases structure and data flow. See **summary.md** for a short description of what each diagram shows.
 
 | File | Description |
 |------|--------------|
