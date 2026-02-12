@@ -22,7 +22,7 @@ class TestConvertHtmlToText:
         assert Path(result).suffix == ".txt", "File extension should match expected"
         # Check that output file contains text
         content = Path(result).read_text(encoding="utf-8")
-        assert len(content) > 0, "Length should be greater than 0"
+        assert len(content) > 0, "content read should not be empty"
         # Should not contain HTML tags
         assert "<html>" not in content.lower(), "HTML tags should be removed"
         assert "<body>" not in content.lower(), "HTML tags should be removed"
@@ -46,6 +46,7 @@ class TestConvertHtmlToText:
         
         assert "console.log" not in content, "console.log should not be in content"
         assert "This is visible text" in content, "This is visible text in content should be true"
+        
     def test_styles_removed(self, temp_output_dir):
         """Test that style tags are removed from output."""
         html_content = """<html><head>
@@ -59,8 +60,9 @@ class TestConvertHtmlToText:
         result = convert_html_to_text(html_file, temp_output_dir)
         content = Path(result).read_text(encoding="utf-8")
         
-        assert "color: red" not in content, "color: red not in content should be true"
-        assert "Visible content" in content, "Visible content in content should be true"
+        assert "color: red" not in content, "content should contain 'color: red'"
+        assert "Visible content" in content, 'content should contain "Visible content" '
+
     def test_tables_preserved(self, temp_output_dir):
         """Test that table content is preserved."""
         html_content = """<html><body>
@@ -108,6 +110,7 @@ class TestConvertHtmlToText:
         content = Path(result).read_text(encoding="utf-8")
         
         assert "àáâãäå" in content or len(content) > 0, "Length should be greater than 0"
+
     def test_invalid_file(self, temp_output_dir):
         """Test handling of invalid file path."""
         invalid_path = Path(temp_output_dir, "nonexistent.html")
@@ -115,6 +118,7 @@ class TestConvertHtmlToText:
         
         # Should return None or handle gracefully
         assert result is None, "result should be None"
+
 class TestHtml2TxtMain:
     """Tests for main function (CLI entry point)."""
 
@@ -128,7 +132,8 @@ class TestHtml2TxtMain:
         assert "Converted" in captured.out or "Converting" in captured.out or "Saved" in captured.out or "DONE" in captured.out, "Expected message not found in captured output"
         # Check file was created"""
         txt_files = list(temp_output_dir.glob("*.txt"))
-        assert len(txt_files) > 0, "Length should be greater than 0"
+        assert len(txt_files) > 0, "*.txt count should be greater than 0"
+
     def test_main_directory(self, fixtures_dir, temp_output_dir, capsys):
         """Test main function with directory of HTML files."""
         # Create a directory with HTMLs
@@ -146,7 +151,8 @@ class TestHtml2TxtMain:
         assert "Found" in captured.out or "All HTML files converted" in captured.out, "Expected message not found in captured output"
         # Check files were created"""
         txt_files = list(temp_output_dir.glob("*.txt"))
-        assert len(txt_files) >= 2, "Length should be greater than 0"
+        assert len(txt_files) >= 2, "txt file count should be greater than 0"
+
     def test_main_invalid_input(self, temp_output_dir, capsys):
         """Test main function with invalid input."""
         invalid_path = Path(temp_output_dir, "nonexistent.html")
@@ -155,9 +161,10 @@ class TestHtml2TxtMain:
         
         captured = capsys.readouterr()
         assert "ERROR" in captured.out or "valid" in captured.out.lower() or "No HTML files found" in captured.out, "Expected message not found in captured output"
+
     def test_main_nonexistent_output_dir(self, sample_html_path, temp_output_dir):
         """Test that main creates output directory if it doesn't exist."""
         new_output = Path(temp_output_dir, "new_output_dir")
         sys.argv = ["txt2phrases", "html2txt", "-i", str(sample_html_path), "-o", str(new_output)]
         main()
-        assert new_output.exists(), "new_output should exist"
+        assert new_output.exists(), "html2txt should generate output"
