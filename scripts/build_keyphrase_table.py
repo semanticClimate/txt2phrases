@@ -6,6 +6,7 @@ Outputs:
   (a) CSV: rows = keyphrases, columns = institutions; cell = count or blank if zero.
            Extra columns: Total (sum of counts), N_institutions (number of non-zero cells).
   (b) HTML + jQuery DataTables: same data in a sortable, searchable table.
+  (c) Plain HTML table: static <table> with <tr>, <th>, <td> (no JavaScript).
 
 Requires package installed: pip install -e .
 
@@ -14,6 +15,7 @@ Requires package installed: pip install -e .
 """
 import argparse
 import csv
+import html
 import json
 import sys
 from pathlib import Path
@@ -25,6 +27,30 @@ INSTITUTION_DIRS = [
     "icar", "nbpgr", "iihr", "iari", "cpcri", "iivr", "bsi", "ppvfra", "nipgr", "iipr",
     "ctcri", "nrri", "iior", "cicr", "iisr", "sbi", "circot", "iiwbr", "ctri", "crijaf",
 ]
+
+# Full name and home page URL per institution id (for <th title=""> and <a href="">)
+INSTITUTION_INFO = {
+    "icar": {"name": "Indian Council of Agricultural Research", "url": "https://www.icar.org.in/"},
+    "nbpgr": {"name": "ICAR–National Bureau of Plant Genetic Resources", "url": "https://nbpgr.org.in/"},
+    "iihr": {"name": "ICAR–Indian Institute of Horticultural Research", "url": "https://www.iihr.res.in/"},
+    "iari": {"name": "ICAR–Indian Agricultural Research Institute", "url": "https://www.iari.res.in/"},
+    "cpcri": {"name": "ICAR–Central Plantation Crops Research Institute", "url": "https://cpcri.icar.gov.in/"},
+    "iivr": {"name": "ICAR–Indian Institute of Vegetable Research", "url": "https://icariivr.org.in/"},
+    "bsi": {"name": "Botanical Survey of India", "url": "https://bsi.gov.in/"},
+    "ppvfra": {"name": "Protection of Plant Varieties and Farmers' Rights Authority", "url": "https://plantauthority.gov.in/"},
+    "nipgr": {"name": "National Institute of Plant Genome Research", "url": "https://www.nipgr.ac.in/"},
+    "iipr": {"name": "ICAR–Indian Institute of Pulses Research", "url": "https://iipr.icar.gov.in/"},
+    "ctcri": {"name": "ICAR–Central Tuber Crops Research Institute", "url": "https://www.ctcri.org/"},
+    "nrri": {"name": "ICAR–National Rice Research Institute", "url": "https://icar-nrri.in/"},
+    "iior": {"name": "ICAR–Indian Institute of Oilseeds Research", "url": "https://icar-iior.org.in/"},
+    "cicr": {"name": "ICAR–Central Institute for Cotton Research", "url": "https://cicr.org.in/"},
+    "iisr": {"name": "ICAR–Indian Institute of Spices Research", "url": "https://spices.res.in/"},
+    "sbi": {"name": "ICAR–Sugarcane Breeding Institute", "url": "https://sugarcane.res.in/"},
+    "circot": {"name": "ICAR–Central Institute for Research on Cotton Technology", "url": "https://circot.icar.gov.in/"},
+    "iiwbr": {"name": "ICAR–Indian Institute of Wheat and Barley Research", "url": "https://www.aicrpwheatbarleyicar.in/"},
+    "ctri": {"name": "ICAR–Central Tobacco Research Institute", "url": "https://ctri.icar.gov.in/"},
+    "crijaf": {"name": "ICAR–Central Research Institute for Jute and Allied Fibres", "url": "https://crijaf.icar.gov.in/"},
+}
 
 
 def _collect_keyword_csvs(reports_dir: Path):
@@ -100,25 +126,10 @@ def write_csv(reports_dir: Path, out_csv: Path, data, institutions, rows):
 
 
 def write_datatables_html(reports_dir: Path, out_html: Path, institutions, rows):
-    """Write a single HTML file with embedded data and jQuery DataTables."""
-    # Build JSON data for DataTables: array of arrays [keyword, count1, count2, ..., total, n_inst]
-    table_rows = []
-    for keyphrase, inst_counts, total, n_institutions in rows:
-        row = [keyphrase]
-        for inst in institutions:
-            c = inst_counts.get(inst, 0)
-            row.append(c if c else "")
-        row.append(total)
-        row.append(n_institutions)
-        table_rows.append(row)
-
-    columns = [{"title": "Keyword"}] + [{"title": inst} for inst in institutions] + [
-        {"title": "Total"},
-        {"title": "N_institutions"},
-    ]
-    columns_js = json.dumps(columns)
-    data_js = json.dumps(table_rows)
-
+    """Write HTML with a normal <table> and DataTables initialised on it (DOM-sourced data)."""
+    table_html = _build_table_html(institutions, rows, table_id="keyphrase-table", table_class="display")
+    # DataTables order: 0-based column index; Total is at index len(institutions) + 1
+    total_col_index = len(institutions) + 1
     html_content = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -131,19 +142,15 @@ def write_datatables_html(reports_dir: Path, out_html: Path, institutions, rows)
   <div class="container" style="margin: 1em;">
     <h1>Keyphrase × Institution matrix</h1>
     <p>Rows = keyphrases, columns = institutions. Blank = zero. Total = sum of counts; N_institutions = number of reports containing the keyphrase.</p>
-    <table id="keyphrase-table" class="display" style="width:100%"></table>
+{table_html}
   </div>
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
   <script>
-    var keyphraseColumns = {columns_js};
-    var keyphraseData = {data_js};
     $(document).ready(function() {{
       $('#keyphrase-table').DataTable({{
-        data: keyphraseData,
-        columns: keyphraseColumns,
         pageLength: 50,
-        order: [[keyphraseColumns.length - 2, 'desc']],
+        order: [[{total_col_index}, 'desc']],
         columnDefs: [
           {{ targets: 0, width: '15%' }},
           {{ targets: -1, width: '8%' }},
@@ -156,6 +163,73 @@ def write_datatables_html(reports_dir: Path, out_html: Path, institutions, rows)
 </html>
 """
     out_html.write_text(html_content, encoding="utf-8")
+
+
+def _build_table_html(institutions, rows, table_id=None, table_class=None):
+    """Build a normal HTML <table> with <thead>, <tbody>, <tr>, <th>, <td>. Returns markup string."""
+    def esc(s):
+        return html.escape(str(s), quote=True)
+    id_attr = f' id="{html.escape(table_id)}"' if table_id else ""
+    class_attr = f' class="{html.escape(table_class)}"' if table_class else ""
+    lines = [f"    <table{id_attr}{class_attr} style=\"width:100%\">", "      <thead>", "        <tr>", "          <th>keyword</th>"]
+    for inst in institutions:
+        info = INSTITUTION_INFO.get(inst, {})
+        name = info.get("name", inst)
+        url = info.get("url", "")
+        title_attr = f' title="{esc(name)}"'
+        if url:
+            cell_content = f'<a href="{esc(url)}">{esc(inst)}</a>'
+        else:
+            cell_content = esc(inst)
+        lines.append(f"          <th{title_attr}>{cell_content}</th>")
+    lines.extend([
+        "          <th>Total</th>",
+        "          <th>N_institutions</th>",
+        "        </tr>",
+        "      </thead>",
+        "      <tbody>",
+    ])
+    for keyphrase, inst_counts, total, n_institutions in rows:
+        cells = [f"          <td>{esc(keyphrase)}</td>"]
+        for inst in institutions:
+            c = inst_counts.get(inst, 0)
+            val = str(c) if c else ""
+            cells.append(f"          <td class=\"num\">{esc(val)}</td>")
+        cells.append(f"          <td class=\"num\">{total}</td>")
+        cells.append(f"          <td class=\"num\">{n_institutions}</td>")
+        lines.append("        <tr>")
+        lines.extend(cells)
+        lines.append("        </tr>")
+    lines.extend(["      </tbody>", "    </table>"])
+    return "\n".join(lines)
+
+
+def write_html_table(out_path: Path, institutions, rows):
+    """Write a static HTML file with a normal <table>, <tr>, <th>, <td>."""
+    table_html = _build_table_html(institutions, rows)
+    full = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keyphrase × Institution matrix</title>
+  <style>
+    table {{ border-collapse: collapse; width: 100%; }}
+    th, td {{ border: 1px solid #ccc; padding: 4px 8px; text-align: left; }}
+    th {{ background: #eee; }}
+    td.num {{ text-align: right; }}
+  </style>
+</head>
+<body>
+  <div style="margin: 1em;">
+    <h1>Keyphrase × Institution matrix</h1>
+    <p>Rows = keyphrases, columns = institutions. Blank = zero. Total = sum of counts; N_institutions = number of reports containing the keyphrase.</p>
+{table_html}
+  </div>
+</body>
+</html>
+"""
+    out_path.write_text(full, encoding="utf-8")
 
 
 def main():
@@ -178,7 +252,13 @@ def main():
         "--html",
         type=Path,
         default=None,
-        help="Output HTML path (default: <reports-dir>/keyphrase_datatables.html)",
+        help="Output DataTables HTML path (default: <reports-dir>/keyphrase_datatables.html)",
+    )
+    parser.add_argument(
+        "--html-table",
+        type=Path,
+        default=None,
+        help="Output plain HTML table path (default: <reports-dir>/keyphrase_table.html)",
     )
     args = parser.parse_args()
 
@@ -194,12 +274,15 @@ def main():
     rows = _build_rows(data, institutions)
     out_csv = args.csv or (args.reports_dir / "keyphrase_matrix.csv")
     out_html_path = args.html or (args.reports_dir / "keyphrase_datatables.html")
+    out_table_path = args.html_table or (args.reports_dir / "keyphrase_table.html")
 
     write_csv(args.reports_dir, out_csv, data, institutions, rows)
     write_datatables_html(args.reports_dir, out_html_path, institutions, rows)
+    write_html_table(out_table_path, institutions, rows)
 
-    print(f"CSV:  {out_csv} ({len(rows)} keyphrases, {len(institutions)} institutions)")
-    print(f"HTML: {out_html_path}")
+    print(f"CSV:   {out_csv} ({len(rows)} keyphrases, {len(institutions)} institutions)")
+    print(f"HTML (DataTables): {out_html_path}")
+    print(f"HTML (table):      {out_table_path}")
 
 
 if __name__ == "__main__":

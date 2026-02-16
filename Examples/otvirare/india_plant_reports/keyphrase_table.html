@@ -4,13 +4,18 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Keyphrase × Institution matrix</title>
-  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+  <style>
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ccc; padding: 4px 8px; text-align: left; }
+    th { background: #eee; }
+    td.num { text-align: right; }
+  </style>
 </head>
 <body>
-  <div class="container" style="margin: 1em;">
+  <div style="margin: 1em;">
     <h1>Keyphrase × Institution matrix</h1>
     <p>Rows = keyphrases, columns = institutions. Blank = zero. Total = sum of counts; N_institutions = number of reports containing the keyphrase.</p>
-    <table id="keyphrase-table" class="display" style="width:100%">
+    <table style="width:100%">
       <thead>
         <tr>
           <th>keyword</th>
@@ -24992,20 +24997,5 @@
       </tbody>
     </table>
   </div>
-  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-  <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
-  <script>
-    $(document).ready(function() {
-      $('#keyphrase-table').DataTable({
-        pageLength: 50,
-        order: [[11, 'desc']],
-        columnDefs: [
-          { targets: 0, width: '15%' },
-          { targets: -1, width: '8%' },
-          { targets: -2, width: '8%' }
-        ]
-      });
-    });
-  </script>
 </body>
 </html>
