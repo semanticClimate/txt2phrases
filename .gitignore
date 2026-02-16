@@ -134,11 +134,7 @@ dmypy.json
 Thumbs.db
 
 # Project specific
-# *.txt
 !requirements.txt
-# *.csv
-# *.pdf
-# *.html
 
 # Test and script outputs (inspectable after run, not committed)
 temp/
