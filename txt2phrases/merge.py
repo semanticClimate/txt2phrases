@@ -48,6 +48,9 @@ def merge_keyphrase_csvs(
     """
     Merge one or more keyword CSVs (columns: keyword, count) into one CSV with aggregated counts.
 
+    Duplicate keywords (repeated rows in a single CSV or across multiple CSVs) are aggregated:
+    counts are summed per keyword, so the output has at most one row per keyword.
+
     :param input_paths: List of CSV file paths, or a single directory Path (will glob for *.csv).
     :param output_path: Path for the merged output CSV.
     :param top_n: If set, keep only the top N keywords by count (descending).
@@ -57,6 +60,7 @@ def merge_keyphrase_csvs(
     frames = [_read_and_validate_csv(p) for p in paths]
     combined = pd.concat(frames, ignore_index=True)
 
+    # Aggregate duplicate keywords (within or across files): one row per keyword, count = sum
     aggregated = (
         combined.groupby("keyword", as_index=False)["count"]
         .sum()

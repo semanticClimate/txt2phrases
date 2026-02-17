@@ -43,6 +43,32 @@ class TestMergeKeyphraseCsvsEmptyAndSingle:
         row0 = df[df["keyword"] == "climate change"].iloc[0]
         assert int(row0["count"]) == 10, f"Expected count 10 for 'climate change', got {row0['count']}"
 
+    def test_single_csv_duplicate_keywords_aggregated(self, temp_output_dir):
+        """Single CSV with duplicate keyword rows: output has one row per keyword with counts summed."""
+        csv_path = Path(temp_output_dir, "with_dupes.csv")
+        pd.DataFrame(
+            [
+                ["rice", 5],
+                ["wheat", 2],
+                ["rice", 3],
+                ["wheat", 1],
+            ],
+            columns=["keyword", "count"],
+        ).to_csv(csv_path, index=False)
+        output_path = Path(temp_output_dir, "merged.csv")
+
+        merge_keyphrase_csvs(input_paths=[csv_path], output_path=output_path)
+
+        assert output_path.exists(), f"Merged output file {output_path} should exist"
+        df = pd.read_csv(output_path)
+        assert list(df.columns) == ["keyword", "count"], (
+            f"Merged CSV should have columns ['keyword', 'count'], got {list(df.columns)}"
+        )
+        assert len(df) == 2, f"Duplicate keywords should be merged: expected 2 rows (rice, wheat), got {len(df)}"
+        counts = dict(zip(df["keyword"], df["count"].astype(int)))
+        assert counts["rice"] == 8, f"Expected rice count 5+3=8, got {counts.get('rice')}"
+        assert counts["wheat"] == 3, f"Expected wheat count 2+1=3, got {counts.get('wheat')}"
+
 
 class TestMergeKeyphraseCsvsAggregation:
     """Two or more CSVs: concatenation and count aggregation."""
