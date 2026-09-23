@@ -3,6 +3,7 @@ import os
 import pytest
 import subprocess
 import sys
+import pandas as pd
 from pathlib import Path
 from txt2phrases.cli import main
 
@@ -164,6 +165,71 @@ class TestCliAuto:
         with pytest.raises(SystemExit):
             main()
 
+
+class TestCliClassify:
+    """Tests for classify CLI command."""
+
+    def _write_chapter_csv(self, path, keyword_counts):
+        pd.DataFrame(keyword_counts, columns=["keyword", "count"]).to_csv(path, index=False)
+
+    def test_classify_basic(self, temp_output_dir, capsys):
+        """Test classify command produces expected output files."""
+        input_dir = Path(temp_output_dir, "keywords")
+        input_dir.mkdir()
+        self._write_chapter_csv(
+            Path(input_dir, "chapter1.csv"),
+            [("machine learning", 15), ("climate change", 12), ("data science", 10)],
+        )
+        self._write_chapter_csv(
+            Path(input_dir, "chapter2.csv"),
+            [("climate change", 20), ("global warming", 18), ("carbon emissions", 15)],
+        )
+        output_dir = Path(temp_output_dir, "classified")
+
+        sys.argv = ["txt2phrases", "classify", "-i", str(input_dir), "-o", str(output_dir)]
+        main()
+
+        assert Path(output_dir, "chapter1_specific_keywords.csv").exists()
+        assert Path(output_dir, "chapter2_specific_keywords.csv").exists()
+        assert Path(output_dir, "general_specific_keywords.csv").exists()
+
+    def test_classify_custom_threshold_and_min_freq(self, temp_output_dir):
+        """Test classify command respects --threshold and --min-freq options."""
+        input_dir = Path(temp_output_dir, "keywords")
+        input_dir.mkdir()
+        self._write_chapter_csv(
+            Path(input_dir, "chapter1.csv"),
+            [("specific_term", 20), ("low_freq_term", 2)],
+        )
+        output_dir = Path(temp_output_dir, "classified")
+
+        sys.argv = [
+            "txt2phrases", "classify",
+            "-i", str(input_dir), "-o", str(output_dir),
+            "--threshold", "0.7", "--min-freq", "5",
+        ]
+        main()
+
+        df = pd.read_csv(Path(output_dir, "chapter1_specific_keywords.csv"))
+        keywords = df["keyword"].tolist()
+        assert "low_freq_term" not in keywords, "min_freq=5 should filter out a count-2 keyword"
+
+    def test_classify_missing_args(self, capsys):
+        """Test classify command with missing arguments."""
+        sys.argv = ["txt2phrases", "classify"]
+
+        with pytest.raises(SystemExit):
+            main()
+
+    def test_classify_invalid_input_dir(self, temp_output_dir):
+        """Test classify command with a nonexistent input directory."""
+        bad_input = Path(temp_output_dir, "does_not_exist")
+        output_dir = Path(temp_output_dir, "classified")
+
+        sys.argv = ["txt2phrases", "classify", "-i", str(bad_input), "-o", str(output_dir)]
+
+        with pytest.raises(FileNotFoundError):
+            main()
 
 class TestCliGeneral:
     """General CLI tests."""

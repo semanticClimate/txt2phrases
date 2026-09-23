@@ -1,6 +1,8 @@
 import os
 import re
-from collections import Counter
+import json
+from datetime import datetime, timezone
+from collections import Counter, defaultdict
 import pandas as pd
 from tqdm import tqdm
 from transformers import (
@@ -9,6 +11,8 @@ from transformers import (
     AutoTokenizer,
 )
 from transformers.pipelines import AggregationStrategy
+
+from txt2phrases.stopwords import load_stopwords, filter_stopwords
 
 
 # -----------------------------
@@ -36,6 +40,87 @@ class KeyphraseExtractionPipeline(TokenClassificationPipeline):
 
 
 # -----------------------------
+# Standalone post-processing helpers
+# (kept free of the model/class so they're unit-testable without loading
+#  the transformer model)
+# -----------------------------
+def consolidate_case_variants(counts):
+    """
+    Merge casing variants of the same keyword (e.g. 'climate anxiety' and
+    'Climate anxiety') into a single entry, summing their counts.
+
+    The display form kept for each group is the original-cased variant
+    with the highest count (ties broken alphabetically, for deterministic
+    output) - this keeps acronyms/proper nouns (e.g. 'CCAS', 'UK') in their
+    natural casing as long as that's the (or a tied) dominant variant,
+    while still merging casing variants of ordinary phrases into one entry.
+
+    Mirrors the equivalent logic in merge.py's _aggregate_case_insensitive,
+    but operates on a Counter of (keyword -> count) rather than a DataFrame
+    of per-source rows, since extraction only ever sees one file at a time.
+    """
+    groups = defaultdict(lambda: defaultdict(int))
+    for keyword, count in counts.items():
+        groups[keyword.casefold()][keyword] += count
+
+    consolidated = Counter()
+    for variants in groups.values():
+        total = sum(variants.values())
+        display_form = sorted(variants.items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
+        consolidated[display_form] = total
+
+    return consolidated
+
+
+def rank_keyphrases(
+    counts, top_n, exact_stopwords=None, prefix_stopwords=None, case_insensitive=True
+):
+    """
+    Given a {keyword: count} Counter:
+      1. filter out stopwords (if any given)
+      2. merge casing variants of the same keyword (unless case_insensitive=False)
+      3. return the top_n (keyword, count) tuples, most frequent first.
+    """
+    if exact_stopwords or prefix_stopwords:
+        counts = filter_stopwords(counts, exact_stopwords or set(), prefix_stopwords or ())
+    if case_insensitive:
+        counts = consolidate_case_variants(counts)
+    return counts.most_common(top_n)
+
+
+def write_keyword_outputs(top_keywords, output_folder, base_name, write_json=False):
+    """
+    Write `top_keywords` (a list of (keyword, count) tuples, most frequent
+    first) as a CSV (always) and, if write_json is True, as a companion
+    JSON file with the same base name.
+
+    Returns (csv_path, json_path_or_None).
+    """
+    df = pd.DataFrame(top_keywords, columns=["keyword", "count"])
+    output_csv = os.path.join(output_folder, f"{base_name}_keywords.csv")
+    df.to_csv(output_csv, index=False)
+    print(f"Saved: {output_csv}")
+
+    output_json = None
+    if write_json:
+        output_json = os.path.join(output_folder, f"{base_name}_keywords.json")
+        payload = {
+            "document": base_name,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "n_keyphrases": len(top_keywords),
+            "keyphrases": [
+                {"keyword": kw, "count": int(count), "rank": i + 1}
+                for i, (kw, count) in enumerate(top_keywords)
+            ],
+        }
+        with open(output_json, "w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2, ensure_ascii=False)
+        print(f"Saved: {output_json}")
+
+    return output_csv, output_json
+
+
+# -----------------------------
 # Keyword Extraction Class
 # -----------------------------
 class KeywordExtraction:
@@ -43,10 +128,24 @@ class KeywordExtraction:
     Extracts keywords from a TXT file or folder of TXT files.
     """
 
-    def __init__(self, input_path, output_folder, top_n=1000):
+    def __init__(
+        self,
+        input_path,
+        output_folder,
+        top_n=1000,
+        stopwords_path=None,
+        use_default_stopwords=True,
+        output_json=False,
+        case_insensitive=True,
+    ):
         self.input_path = input_path
         self.output_folder = output_folder
         self.top_n = top_n
+        self.output_json = output_json
+        self.case_insensitive = case_insensitive
+        self.exact_stopwords, self.prefix_stopwords = load_stopwords(
+            custom_path=stopwords_path, use_defaults=use_default_stopwords
+        )
         os.makedirs(self.output_folder, exist_ok=True)
 
         self.model_name = "ml6team/keyphrase-extraction-kbir-inspec"
@@ -84,14 +183,18 @@ class KeywordExtraction:
                 keyphrases.extend(phrases)
 
         counts = Counter(keyphrases)
-        top_keywords = counts.most_common(self.top_n)
+        top_keywords = rank_keyphrases(
+            counts,
+            self.top_n,
+            self.exact_stopwords,
+            self.prefix_stopwords,
+            case_insensitive=self.case_insensitive,
+        )
 
-        df = pd.DataFrame(top_keywords, columns=["keyword", "count"])
         base_name = os.path.splitext(os.path.basename(file_path))[0]
-        output_csv = os.path.join(self.output_folder, f"{base_name}_keywords.csv")
-        df.to_csv(output_csv, index=False)
-
-        print(f"Saved: {output_csv}")
+        output_csv, output_json = write_keyword_outputs(
+            top_keywords, self.output_folder, base_name, write_json=self.output_json
+        )
         return output_csv
 
     def extract(self):
@@ -112,4 +215,3 @@ class KeywordExtraction:
             print(f"\nAll keyword CSVs saved in: {self.output_folder}")
         else:
             raise ValueError(" Please provide a valid TXT file or folder path.")
-

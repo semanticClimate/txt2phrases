@@ -10,6 +10,9 @@ from txt2phrases.pdf2txt import convert_pdf_to_text
 from txt2phrases.html2txt import convert_html_to_text
 from txt2phrases.keyword import KeywordExtraction
 from txt2phrases.pygetpaper import main as pygetpaper_main
+from txt2phrases.merge import merge_keyphrase_csvs
+from txt2phrases.classify_specific import classify_keywords_split_files
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -38,11 +41,69 @@ def main():
     parser_keyword.add_argument("-o", "--output", required=True, help="Output folder")
     parser_keyword.add_argument("-n", "--top_n", type=int, default=1000, help="Top N keywords")
 
+    parser_keyword.add_argument(
+        "--stopwords", default=None,
+        help="Path to a custom stopwords file (one term per line, '#' for comments). "
+             "Merged with the built-in default list unless --no-default-stopwords is set."
+    )
+    parser_keyword.add_argument(
+        "--no-default-stopwords", action="store_true",
+        help="Disable the built-in stopword list (journal names, licence boilerplate). "
+             "Only terms from --stopwords, if given, will be filtered."
+    )
+    parser_keyword.add_argument(
+        "--json", action="store_true",
+        help="Also write a <name>_keywords.json file alongside the CSV for each input file."
+    )
+
+    parser_keyword.add_argument(
+        "--case-sensitive", action="store_true",
+        help="Treat casing variants (e.g. 'Climate anxiety' vs 'climate anxiety') as distinct "
+             "keywords instead of merging them (default: case-insensitive merging)"
+    )
+
     # Auto pipeline
     parser_auto = subparsers.add_parser("auto", help="Run full pipeline: PDF → TXT → keywords")
     parser_auto.add_argument("-i", "--input", required=True, help="Input folder (PDFs or PyGetPapers output)")
     parser_auto.add_argument("-o", "--output", required=True, help="Output folder for TXT and keywords")
     parser_auto.add_argument("-n", "--num_keywords", type=int, default=100, help="Number of top keywords to extract")
+
+    # Merge keyword CSVs
+    parser_merge = subparsers.add_parser("merge", help="Merge multiple keyword CSV files")
+    parser_merge.add_argument(
+        "-i", "--input", required=True, nargs="+",
+        help="Input CSV file(s) or a directory containing CSV files"
+    )
+    parser_merge.add_argument("-o", "--output", required=True, help="Output merged CSV file path")
+    parser_merge.add_argument("-n", "--top-n", type=int, default=None, help="Keep only the top N keywords")
+    parser_merge.add_argument(
+        "--sort-by", choices=["count", "keyword"], default="count",
+        help="Sort merged results by 'count' (default) or 'keyword'"
+    )
+
+    parser_merge.add_argument(
+        "--case-sensitive", action="store_true",
+        help="Treat casing variants (e.g. 'Climate anxiety' vs 'climate anxiety') as distinct "
+             "keywords instead of merging them (default: case-insensitive merging)"
+    )
+
+    # Classify keywords into general/specific
+    parser_classify = subparsers.add_parser(
+        "classify", help="Classify keywords as general or chapter-specific using TF-IDF"
+    )
+    parser_classify.add_argument(
+        "-i", "--input", required=True,
+        help="Input directory containing per-chapter keyword CSVs (keyword, count columns)"
+    )
+    parser_classify.add_argument("-o", "--output", required=True, help="Output directory for classified CSVs")
+    parser_classify.add_argument(
+        "-t", "--threshold", type=float, default=0.6,
+        help="TF-IDF score threshold above which a keyword counts as 'specific' (default: 0.6)"
+    )
+    parser_classify.add_argument(
+        "-m", "--min-freq", type=int, default=5,
+        help="Minimum count within a chapter for a keyword to be considered (default: 5)"
+    )
 
     args = parser.parse_args()
 
@@ -94,13 +155,35 @@ def main():
         extractor = KeywordExtraction(
             input_path=args.input,
             output_folder=args.output,
-            top_n=args.top_n
+            top_n=args.top_n,
+            stopwords_path=args.stopwords,
+            use_default_stopwords=not args.no_default_stopwords,
+            output_json=args.json,
+            case_insensitive=not args.case_sensitive,
         )
         extractor.extract()
-        
+     
     elif args.command == "auto":
         # Call pygetpaper_main with the parsed arguments
         pygetpaper_main(["-i", args.input, "-o", args.output, "-n", str(args.num_keywords)])
+
+    elif args.command == "merge":
+        merge_keyphrase_csvs(
+            input_paths=args.input,
+            output_path=args.output,
+            top_n=args.top_n,
+            sort_by=args.sort_by,
+            case_insensitive=not args.case_sensitive,
+        )
+
+
+    elif args.command == "classify":
+        classify_keywords_split_files(
+            input_dir=args.input,
+            output_dir=args.output,
+            threshold=args.threshold,
+            min_freq=args.min_freq,
+        )
 
 if __name__ == "__main__":
     main()

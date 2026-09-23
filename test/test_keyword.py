@@ -4,6 +4,13 @@ import pytest
 from pathlib import Path
 import pandas as pd
 from txt2phrases.keyword import KeywordExtraction, KeyphraseExtractionPipeline
+import json
+from collections import Counter
+from txt2phrases.keyword import (
+    KeywordExtraction, KeyphraseExtractionPipeline,
+    rank_keyphrases, write_keyword_outputs, consolidate_case_variants,
+)
+from txt2phrases.stopwords import load_stopwords
 
 
 class TestKeyphraseExtractionPipeline:
@@ -51,6 +58,121 @@ class TestKeyphraseExtractionPipeline:
             # Empty input may raise an error, which is acceptable
             pytest.skip("Empty input handling may vary by model")
 
+class TestConsolidateCaseVariants:
+    """Tests for consolidate_case_variants() - merging casing variants."""
+
+    def test_merges_casing_variants_summing_counts(self):
+        counts = Counter({"climate anxiety": 57, "Climate anxiety": 19})
+
+        result = consolidate_case_variants(counts)
+
+        assert dict(result) == {"climate anxiety": 76}, (
+            "display form should be the more frequent variant; count should be summed"
+        )
+
+    def test_keeps_dominant_casing_as_display_form(self):
+        counts = Counter({"climate anxiety": 5, "Climate anxiety": 100})
+
+        result = consolidate_case_variants(counts)
+
+        assert dict(result) == {"Climate anxiety": 105}
+
+    def test_single_variant_acronym_untouched(self):
+        counts = Counter({"CCAS": 13, "UK": 5})
+
+        result = consolidate_case_variants(counts)
+
+        assert dict(result) == {"CCAS": 13, "UK": 5}
+
+
+class TestRankKeyphrases:
+    """Tests for rank_keyphrases() - stopword filtering + case merging + top_n selection."""
+
+    def test_no_stopwords_returns_top_n_by_count(self):
+        counts = Counter({"a": 10, "b": 5, "c": 1})
+
+        result = rank_keyphrases(counts, top_n=2)
+
+        assert result == [("a", 10), ("b", 5)]
+
+    def test_filters_default_stopwords_before_top_n(self):
+        counts = Counter({
+            "climate anxiety": 145, "BMC Psychology": 13,
+            "climate change": 52, "Creative Commons licence": 6,
+        })
+        exact, prefixes = load_stopwords()
+
+        result = rank_keyphrases(counts, top_n=2, exact_stopwords=exact, prefix_stopwords=prefixes)
+
+        assert result == [("climate anxiety", 145), ("climate change", 52)]
+
+    def test_no_stopwords_given_skips_filtering(self):
+        counts = Counter({"BMC Psychology": 13, "climate anxiety": 145})
+
+        result = rank_keyphrases(counts, top_n=10)
+
+        assert ("BMC Psychology", 13) in result, "no stopword sets given, so nothing should be filtered"
+
+    def test_case_insensitive_default_merges_variants(self):
+        counts = Counter({"climate anxiety": 57, "Climate anxiety": 19, "young people": 19})
+
+        result = dict(rank_keyphrases(counts, top_n=10))
+
+        assert result.get("climate anxiety") == 76
+        assert "Climate anxiety" not in result
+
+    def test_case_sensitive_opt_out_keeps_variants_split(self):
+        counts = Counter({"climate anxiety": 57, "Climate anxiety": 19})
+
+        result = dict(rank_keyphrases(counts, top_n=10, case_insensitive=False))
+
+        assert result.get("climate anxiety") == 57
+        assert result.get("Climate anxiety") == 19
+
+    def test_stopwords_and_case_merging_combine(self):
+        counts = Counter({
+            "climate anxiety": 57, "Climate anxiety": 19,
+            "BMC Psychology": 13, "bmc psychology": 4,
+        })
+        exact, prefixes = load_stopwords()
+
+        result = dict(rank_keyphrases(counts, top_n=10, exact_stopwords=exact, prefix_stopwords=prefixes))
+
+        assert result == {"climate anxiety": 76}, (
+            "stopword variants should be filtered regardless of casing, "
+            "and remaining casing variants merged"
+        )
+
+class TestWriteKeywordOutputs:
+    """Tests for write_keyword_outputs() - CSV + optional JSON writing."""
+
+    def test_writes_csv_only_by_default(self, temp_output_dir):
+        top_keywords = [("climate anxiety", 145), ("women", 32)]
+
+        csv_path, json_path = write_keyword_outputs(top_keywords, temp_output_dir, "paper1")
+
+        assert Path(csv_path).exists()
+        assert json_path is None
+        assert not Path(temp_output_dir, "paper1_keywords.json").exists()
+
+        df = pd.read_csv(csv_path)
+        assert list(df["keyword"]) == ["climate anxiety", "women"]
+
+    def test_writes_json_when_requested(self, temp_output_dir):
+        top_keywords = [("climate anxiety", 145), ("women", 32)]
+
+        csv_path, json_path = write_keyword_outputs(
+            top_keywords, temp_output_dir, "paper1", write_json=True
+        )
+
+        assert Path(csv_path).exists()
+        assert Path(json_path).exists()
+
+        data = json.loads(Path(json_path).read_text())
+        assert data["document"] == "paper1"
+        assert data["n_keyphrases"] == 2
+        assert data["keyphrases"][0] == {"keyword": "climate anxiety", "count": 145, "rank": 1}
+        assert data["keyphrases"][1] == {"keyword": "women", "count": 32, "rank": 2}
 
 class TestKeywordExtraction:
     """Tests for KeywordExtraction class."""
