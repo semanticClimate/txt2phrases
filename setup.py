@@ -41,6 +41,7 @@ setup(
     install_requires=[
         "beautifulsoup4>=4.9.0",
         "transformers>=4.0.0",
+        "torch>=1.7.0",
         "pandas>=1.0.0",
         "tqdm>=4.50.0",
         "PyPDF2>=2.0.0",
