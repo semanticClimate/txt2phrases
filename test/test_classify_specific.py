@@ -5,6 +5,7 @@ import pytest
 from pathlib import Path
 import pandas as pd
 from txt2phrases.classify_specific import classify_keywords_split_files
+from txt2phrases.classify_specific import classify_keywords_split_files, _consolidate_case_variants_per_chapter
 
 
 class TestClassifyKeywordsSplitFiles:
@@ -246,3 +247,78 @@ class TestClassifyKeywordsSplitFiles:
         )
         
         assert new_output_dir.exists(), "new_output_dir should exist"
+
+class TestCaseInsensitiveConsolidation:
+    """Tests for case-insensitive keyword consolidation across chapter CSVs."""
+
+    def _write_chapter_csv(self, path, keyword_counts):
+        pd.DataFrame(keyword_counts, columns=["keyword", "count"]).to_csv(path, index=False)
+
+    def test_consolidate_case_variants_per_chapter_merges_across_chapters(self):
+        raw_freq = {
+            "paper1": {"Age": 8, "climate anxiety": 50},
+            "paper2": {"age": 9, "climate anxiety": 40},
+        }
+
+        result = _consolidate_case_variants_per_chapter(raw_freq)
+
+        # Both chapters should now use the same display form for "age"
+        keys_p1 = set(result["paper1"].keys())
+        keys_p2 = set(result["paper2"].keys())
+        assert keys_p1 == keys_p2, "casing variants should consolidate to the same display form"
+
+    def test_consolidate_picks_highest_total_count_as_display_form(self):
+        raw_freq = {
+            "paper1": {"Age": 8},
+            "paper2": {"age": 3},
+            "paper3": {"Age": 6},
+        }
+
+        result = _consolidate_case_variants_per_chapter(raw_freq)
+
+        # "Age" (8+6=14) outweighs "age" (3), so "Age" should be the display form everywhere
+        assert "Age" in result["paper2"]
+        assert "age" not in result["paper2"]
+        assert result["paper2"]["Age"] == 3
+
+    def test_shared_keyword_with_casing_split_classifies_as_general(self, temp_output_dir):
+        """
+        Reproduces the real-world bug: the same keyword extracted with
+        different casing in different chapters was previously treated as
+        two separate keywords, each falsely looking 'specific' to whichever
+        chapters happened to use that casing. After consolidation, it
+        should correctly classify as general (shared) across all chapters.
+        """
+        input_dir = Path(temp_output_dir, "keywords")
+        input_dir.mkdir()
+        self._write_chapter_csv(Path(input_dir, "paper1.csv"), [("Age", 8), ("climate anxiety", 50)])
+        self._write_chapter_csv(Path(input_dir, "paper2.csv"), [("age", 9), ("climate anxiety", 40)])
+        self._write_chapter_csv(Path(input_dir, "paper3.csv"), [("Age", 6), ("climate anxiety", 60)])
+        self._write_chapter_csv(Path(input_dir, "paper4.csv"), [("Age", 6), ("climate anxiety", 30)])
+        output_dir = Path(temp_output_dir, "classified")
+
+        classify_keywords_split_files(str(input_dir), str(output_dir), threshold=0.7, min_freq=5)
+
+        gs = pd.read_csv(Path(output_dir, "general_specific_keywords.csv"))
+        age_rows = gs[gs["keyword"].str.lower() == "age"]
+
+        assert len(age_rows) == 1, "Age/age should consolidate into a single row"
+        row = age_rows.iloc[0]
+        assert pd.isna(row["Specific"]) or row["Specific"] == "", (
+            "a keyword shared across all 4 papers should classify as general, not specific"
+        )
+        assert set(row["General"].split()) == {"paper1", "paper2", "paper3", "paper4"}
+
+    def test_case_sensitive_opt_out_keeps_variants_separate(self, temp_output_dir):
+        input_dir = Path(temp_output_dir, "keywords")
+        input_dir.mkdir()
+        self._write_chapter_csv(Path(input_dir, "paper1.csv"), [("Age", 8)])
+        self._write_chapter_csv(Path(input_dir, "paper2.csv"), [("age", 9)])
+        output_dir = Path(temp_output_dir, "classified")
+
+        classify_keywords_split_files(
+            str(input_dir), str(output_dir), threshold=0.7, min_freq=5, case_insensitive=False
+        )
+
+        gs = pd.read_csv(Path(output_dir, "general_specific_keywords.csv"))
+        assert len(gs) == 2, "case_insensitive=False should keep 'Age' and 'age' as separate rows"

@@ -61,7 +61,7 @@ def main():
         help="Treat casing variants (e.g. 'Climate anxiety' vs 'climate anxiety') as distinct "
              "keywords instead of merging them (default: case-insensitive merging)"
     )
-
+    
     # Auto pipeline
     parser_auto = subparsers.add_parser("auto", help="Run full pipeline: PDF → TXT → keywords")
     parser_auto.add_argument("-i", "--input", required=True, help="Input folder (PDFs or PyGetPapers output)")
@@ -103,6 +103,12 @@ def main():
     parser_classify.add_argument(
         "-m", "--min-freq", type=int, default=5,
         help="Minimum count within a chapter for a keyword to be considered (default: 5)"
+    )
+
+    parser_classify.add_argument(
+        "--case-sensitive", action="store_true",
+        help="Treat casing variants (e.g. 'Age' in one chapter vs 'age' in another) as distinct "
+             "keywords instead of merging them (default: case-insensitive merging)"
     )
 
     args = parser.parse_args()
@@ -176,14 +182,14 @@ def main():
             case_insensitive=not args.case_sensitive,
         )
 
-
     elif args.command == "classify":
         classify_keywords_split_files(
             input_dir=args.input,
             output_dir=args.output,
             threshold=args.threshold,
             min_freq=args.min_freq,
-        )
+            case_insensitive=not args.case_sensitive,
+        )  
 
 if __name__ == "__main__":
     main()

@@ -231,6 +231,38 @@ class TestCliClassify:
         with pytest.raises(FileNotFoundError):
             main()
 
+class TestCliClassifyCaseSensitivity:
+    """Tests for the classify --case-sensitive flag."""
+
+    def _write_chapter_csv(self, path, keyword_counts):
+        pd.DataFrame(keyword_counts, columns=["keyword", "count"]).to_csv(path, index=False)
+
+    def test_classify_cli_default_is_case_insensitive(self, temp_output_dir):
+        input_dir = Path(temp_output_dir, "keywords")
+        input_dir.mkdir()
+        self._write_chapter_csv(Path(input_dir, "paper1.csv"), [("Age", 8)])
+        self._write_chapter_csv(Path(input_dir, "paper2.csv"), [("age", 9)])
+        output_dir = Path(temp_output_dir, "classified")
+
+        sys.argv = ["txt2phrases", "classify", "-i", str(input_dir), "-o", str(output_dir)]
+        main()
+
+        gs = pd.read_csv(Path(output_dir, "general_specific_keywords.csv"))
+        assert len(gs) == 1
+
+    def test_classify_cli_case_sensitive_flag(self, temp_output_dir):
+        input_dir = Path(temp_output_dir, "keywords")
+        input_dir.mkdir()
+        self._write_chapter_csv(Path(input_dir, "paper1.csv"), [("Age", 8)])
+        self._write_chapter_csv(Path(input_dir, "paper2.csv"), [("age", 9)])
+        output_dir = Path(temp_output_dir, "classified")
+
+        sys.argv = ["txt2phrases", "classify", "-i", str(input_dir), "-o", str(output_dir), "--case-sensitive"]
+        main()
+
+        gs = pd.read_csv(Path(output_dir, "general_specific_keywords.csv"))
+        assert len(gs) == 2
+
 class TestCliGeneral:
     """General CLI tests."""
 
