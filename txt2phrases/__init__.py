@@ -1,4 +1,4 @@
-__version__ = "1.0.4"
+__version__ = "1.0.5"
 
 from txt2phrases.pdf2txt import convert_pdf_to_text
 from txt2phrases.html2txt import convert_html_to_text
