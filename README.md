@@ -1,7 +1,7 @@
 # txt2phrases
 
 `txt2phrases` is a Python library and CLI tool designed for processing and analyzing text data.  
-It provides a streamlined pipeline for converting documents (HTML, PDF) into plain text, extracting keywords using AI models, merging and classifying keywords into specific and general categories using TF-IDF.
+It provides a streamlined pipeline for converting documents (HTML, XML, PDF) into plain text, extracting keywords using AI models, merging and classifying keywords into specific and general categories using TF-IDF.
 
 ---
 
@@ -13,26 +13,30 @@ It provides a streamlined pipeline for converting documents (HTML, PDF) into pla
 ### 2. **HTML to Text Conversion**
 - Convert HTML documents into clean, plain text.
 
-### 3. **AI-Powered Keyword Extraction**
+### 3. **XML to Text Conversion**
+- Convert scientific full-text XML (JATS format, e.g. from 'pygetpapers' `-x` option) into clean, plain text.
+- Automatically strips references/bibliography and acknowledgements by default, so downstream keyword extraction isn't polluted with citation text.
+
+### 4. **AI-Powered Keyword Extraction**
 - Use advanced NLP models (e.g., Hugging Face Transformers) to extract and rank the most important keywords from text files.
 - Automatically filters out journal names, licence/boilerplate text, and other non-content noise using a built-in stopword list (extendable with your own).
 - Merges casing variants of the same keyword (e.g. `"Climate anxiety"` and `"climate anxiety"`) so they aren't counted as two separate terms.
 - Optional JSON output alongside CSV for each processed file.
 
-### 4. **Keyword Merging**
+### 5. **Keyword Merging**
 - Combine keyword CSVs from multiple documents into a single ranked CSV, with counts aggregated across sources.
 
-### 5. **Keyword Classification**
+### 6. **Keyword Classification**
 - Classify keywords as general (shared across documents) or specific (unique to one document) using TF-IDF.
 - Casing variants of the same keyword across different documents (e.g. `"Age"` vs `"age"`) are merged before classifying, so they aren't miscounted as separate, falsely "document-specific" keywords.
 
-### 6. **Automated Pipeline**
+### 7. **Automated Pipeline**
 - Run the entire pipeline (PDF/HTML → TXT → Keywords) with a single command.
 
-### 7. **Batch Processing**
+### 8. **Batch Processing**
 - Process single files or entire directories efficiently.
 
-### 8. **Configurable Parameters**
+### 9. **Configurable Parameters**
 - Customize thresholds, stopwords, batch sizes, and output formats to suit your needs.
 
 ---
@@ -56,6 +60,9 @@ txt2phrases pdf2txt -i document.pdf -o output_folder
 # Convert HTML to text
 txt2phrases html2txt -i webpage.html -o output_folder
 
+# Convert XML to text
+txt2phrases xml2txt -i papers_xml/ -o output_folder
+
 # Extract keywords from text files
 txt2phrases keyphrases -i text_files/ -o keywords/ -n 500
 
@@ -77,6 +84,7 @@ txt2phrases auto -i pygetpapers_output/ -o results/ -n 100
 from txt2phrases import (
     convert_pdf_to_text,
     convert_html_to_text,
+    convert_xml_to_text,
     KeywordExtraction,
     classify_keywords_split_files
 )
@@ -116,6 +124,40 @@ Convert HTML files to clean text format.
 ```bash
 txt2phrases html2txt -i webpage.html -o output_folder
 txt2phrases html2txt -i html_directory/ -o text_output/
+```
+
+---
+
+### 📰 `xml2txt`
+Convert scientific full-text XML (JATS format) to clean text format.
+
+```bash
+txt2phrases xml2txt -i fulltext.xml -o output_folder
+txt2phrases xml2txt -i papers_xml/ -o text_output/
+```
+
+**Options:**
+
+| Flag | Description |
+|---|---|
+| `--keep-references` | Keep the references/bibliography section (`<back>`/`<ref-list>` in JATS XML) instead of stripping it by default. |
+
+By default, the references/bibliography and acknowledgements sections (JATS `<back>`) are stripped before extracting text, since these are a heavy source of journal-name and author-name noise for downstream keyword extraction:
+
+```bash
+# References and acknowledgements stripped by default
+txt2phrases xml2txt -i fulltext.xml -o output_folder
+
+# Keep everything, including references
+txt2phrases xml2txt -i fulltext.xml -o output_folder --keep-references
+```
+
+When given a directory, `xml2txt` searches recursively — this matters for pygetpapers-style output, where every paper's XML is named `fulltext.xml` but nested in its own subfolder (`papers_xml/PMC12345/fulltext.xml`). Each output is automatically renamed after its parent folder (`PMC12345.txt`) so multiple papers don't collide on the generic `fulltext.txt` name. A normally-named file (e.g. `paper1.xml`) keeps its own name unchanged.
+
+```bash
+# papers_xml/PMC11111111/fulltext.xml, papers_xml/PMC22222222/fulltext.xml, ...
+# -> text_output/PMC11111111.txt, text_output/PMC22222222.txt, ...
+txt2phrases xml2txt -i papers_xml/ -o text_output/
 ```
 
 ---
@@ -240,7 +282,7 @@ A higher threshold requires a keyword to be more exclusive to one document befor
 ---
 
 ### ⚙️ `auto`
-Complete processing pipeline for PyGetPapers output or PDF directories: converts PDFs to text and extracts keywords in one step. Automatically applies the same default stopword filtering and case-insensitive consolidation as `keyphrases` (not yet configurable from `auto` directly — use the `pdf2txt` → `keyphrases` → `merge`/`classify` commands separately if you need `--stopwords`, `--json`, or `--case-sensitive` control at this stage).
+Complete processing pipeline for `pygetpapers` output or PDF directories: converts PDFs to text and extracts keywords in one step. Automatically applies the same default stopword filtering and case-insensitive consolidation as `keyphrases` (not yet configurable from `auto` directly — use the `pdf2txt` → `keyphrases` → `merge`/`classify` commands separately if you need `--stopwords`, `--json`, or `--case-sensitive` control at this stage).
 
 ```bash
 txt2phrases auto -i pygetpapers_output/ -o results/ -n 200
@@ -274,7 +316,7 @@ Try comparing two thresholds on the same data (e.g. `0.5` vs `0.7`) before settl
 ### 2. **Complete Research Pipeline**
 
 ```bash
-# Download papers with PyGetPapers
+# Download papers with pygetpapers
 pygetpapers -q "machine learning" -o papers/ -k 100
 
 # Process and analyze
@@ -318,6 +360,7 @@ To use `txt2phrases`, ensure you have the following installed:
   - `transformers>=4.0.0`: For AI-powered keyword extraction
   - `scikit-learn>=1.0.0`: For TF-IDF-based keyword classification
   - `PyPDF2>=2.0.0`: For PDF text extraction
+  - `lxml>=4.6.0`: For XML parsing
   - `torch>=1.7.0`: For running NLP models
 
 **Important:** Install dependencies before running tests or using the library:

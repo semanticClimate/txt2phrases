@@ -43,6 +43,7 @@ setup(
         "transformers>=4.0.0",
         "torch>=1.7.0",
         "pandas>=1.0.0",
+        "lxml>=4.6.0",
         "tqdm>=4.50.0",
         "PyPDF2>=2.0.0",
         "scikit-learn>=1.0.0",

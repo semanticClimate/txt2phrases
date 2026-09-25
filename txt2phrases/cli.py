@@ -1,5 +1,6 @@
 # cli.py
 import argparse
+import logging
 import sys
 import os
 
@@ -8,10 +9,14 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from txt2phrases.pdf2txt import convert_pdf_to_text
 from txt2phrases.html2txt import convert_html_to_text
+from txt2phrases.xml2txt import convert_xml_to_text, find_xml_files
 from txt2phrases.keyword import KeywordExtraction
 from txt2phrases.pygetpaper import main as pygetpaper_main
 from txt2phrases.merge import merge_keyphrase_csvs
 from txt2phrases.classify_specific import classify_keywords_split_files
+from txt2phrases.logging_config import configure_logging
+
+logger = logging.getLogger(__name__)
 
 
 def main():
@@ -19,8 +24,17 @@ def main():
         description="txt2phrases CLI: PDF/HTML → TXT → keywords",
         prog="txt2phrases"  # Explicitly set the program name
     )
+    parser.add_argument(
+        "-v", "--verbose", action="store_true",
+        help="Show debug-level output (more detail than the default)."
+    )
+    parser.add_argument(
+        "-q", "--quiet", action="store_true",
+        help="Suppress routine status messages, showing only warnings and errors. "
+             "Overrides --verbose if both are given."
+    )
     subparsers = parser.add_subparsers(
-        dest="command", 
+        dest="command",
         required=True,
         help="Available commands"
     )
@@ -35,12 +49,21 @@ def main():
     parser_html.add_argument("-i", "--input", required=True, help="Input HTML file or folder")
     parser_html.add_argument("-o", "--output", required=True, help="Output folder")
 
+    # XML2TXT
+    parser_xml = subparsers.add_parser("xml2txt", help="Convert XML (e.g. JATS full-text) to TXT")
+    parser_xml.add_argument("-i", "--input", required=True, help="Input XML file or folder")
+    parser_xml.add_argument("-o", "--output", required=True, help="Output folder")
+    parser_xml.add_argument(
+        "--keep-references", action="store_true",
+        help="Keep the references/bibliography section (<back>/<ref-list> in JATS XML) "
+             "instead of stripping it by default."
+    )
+
     # Keyword Extraction
     parser_keyword = subparsers.add_parser("keyphrases", help="Extract keywords from TXT files")
     parser_keyword.add_argument("-i", "--input", required=True, help="Input TXT file or folder")
     parser_keyword.add_argument("-o", "--output", required=True, help="Output folder")
     parser_keyword.add_argument("-n", "--top_n", type=int, default=1000, help="Top N keywords")
-
     parser_keyword.add_argument(
         "--stopwords", default=None,
         help="Path to a custom stopwords file (one term per line, '#' for comments). "
@@ -55,13 +78,12 @@ def main():
         "--json", action="store_true",
         help="Also write a <name>_keywords.json file alongside the CSV for each input file."
     )
-
     parser_keyword.add_argument(
         "--case-sensitive", action="store_true",
         help="Treat casing variants (e.g. 'Climate anxiety' vs 'climate anxiety') as distinct "
              "keywords instead of merging them (default: case-insensitive merging)"
     )
-    
+
     # Auto pipeline
     parser_auto = subparsers.add_parser("auto", help="Run full pipeline: PDF → TXT → keywords")
     parser_auto.add_argument("-i", "--input", required=True, help="Input folder (PDFs or PyGetPapers output)")
@@ -80,7 +102,6 @@ def main():
         "--sort-by", choices=["count", "keyword"], default="count",
         help="Sort merged results by 'count' (default) or 'keyword'"
     )
-
     parser_merge.add_argument(
         "--case-sensitive", action="store_true",
         help="Treat casing variants (e.g. 'Climate anxiety' vs 'climate anxiety') as distinct "
@@ -104,7 +125,6 @@ def main():
         "-m", "--min-freq", type=int, default=5,
         help="Minimum count within a chapter for a keyword to be considered (default: 5)"
     )
-
     parser_classify.add_argument(
         "--case-sensitive", action="store_true",
         help="Treat casing variants (e.g. 'Age' in one chapter vs 'age' in another) as distinct "
@@ -113,50 +133,76 @@ def main():
 
     args = parser.parse_args()
 
+    configure_logging(verbosity=1 if args.verbose else 0, quiet=args.quiet)
+
     if args.command == "pdf2txt":
         # Handle PDF conversion directly
         from pathlib import Path
-        
+
         input_path = Path(args.input)
         output_path = Path(args.output)
         output_path.mkdir(parents=True, exist_ok=True)
-        
+
         if input_path.is_file() and input_path.suffix.lower() == ".pdf":
             convert_pdf_to_text(input_path, output_path)
-            print(f"Converted {input_path} to TXT")
+            logger.info(f"Converted {input_path} to TXT")
         elif input_path.is_dir():
             pdf_files = list(input_path.glob("*.pdf"))
-            print(f"Found {len(pdf_files)} PDF files to convert")
-            
+            logger.info(f"Found {len(pdf_files)} PDF files to convert")
+
             for pdf_file in pdf_files:
                 convert_pdf_to_text(pdf_file, output_path)
-            
-            print(f"All PDF files converted to TXT in: {output_path}")
+
+            logger.info(f"All PDF files converted to TXT in: {output_path}")
         else:
-            print("No PDF files found.")
-            
+            logger.info("No PDF files found.")
+
     elif args.command == "html2txt":
         # Handle HTML conversion directly
         from pathlib import Path
-        
+
         input_path = Path(args.input)
         output_path = Path(args.output)
         output_path.mkdir(parents=True, exist_ok=True)
-        
+
         if input_path.is_file() and input_path.suffix.lower() == ".html":
             convert_html_to_text(input_path, output_path)
-            print(f"Converted {input_path} to TXT")
+            logger.info(f"Converted {input_path} to TXT")
         elif input_path.is_dir():
             html_files = list(input_path.glob("*.html"))
-            print(f"Found {len(html_files)} HTML files to convert")
-            
+            logger.info(f"Found {len(html_files)} HTML files to convert")
+
             for html_file in html_files:
                 convert_html_to_text(html_file, output_path)
-            
-            print(f"All HTML files converted to TXT in: {output_path}")
+
+            logger.info(f"All HTML files converted to TXT in: {output_path}")
         else:
-            print("No HTML files found.")
-            
+            logger.info("No HTML files found.")
+
+    elif args.command == "xml2txt":
+        from pathlib import Path
+
+        input_path = Path(args.input)
+        output_path = Path(args.output)
+        output_path.mkdir(parents=True, exist_ok=True)
+        strip_references = not args.keep_references
+
+        if input_path.is_file() and input_path.suffix.lower() == ".xml":
+            convert_xml_to_text(input_path, output_path, strip_references=strip_references)
+            logger.info(f"Converted {input_path} to TXT")
+        elif input_path.is_dir():
+            # Recursive: PyGetPapers nests each paper's fulltext.xml inside
+            # its own PMC-numbered subfolder, so a flat glob would miss them.
+            xml_files = find_xml_files(input_path)
+            logger.info(f"Found {len(xml_files)} XML files to convert")
+
+            for xml_file in xml_files:
+                convert_xml_to_text(xml_file, output_path, strip_references=strip_references)
+
+            logger.info(f"All XML files converted to TXT in: {output_path}")
+        else:
+            logger.info("No XML files found.")
+
     elif args.command == "keyphrases":
         extractor = KeywordExtraction(
             input_path=args.input,
@@ -168,7 +214,7 @@ def main():
             case_insensitive=not args.case_sensitive,
         )
         extractor.extract()
-     
+
     elif args.command == "auto":
         # Call pygetpaper_main with the parsed arguments
         pygetpaper_main(["-i", args.input, "-o", args.output, "-n", str(args.num_keywords)])
@@ -189,7 +235,7 @@ def main():
             threshold=args.threshold,
             min_freq=args.min_freq,
             case_insensitive=not args.case_sensitive,
-        )  
+        )
 
 if __name__ == "__main__":
     main()
