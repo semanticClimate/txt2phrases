@@ -14,8 +14,8 @@ with open("README.md", "r", encoding="utf-8") as fh:
 setup(
     name="txt2phrases",
     version=version,
-    author="Udita Agarwal",
-    author_email="udita20agarwal@gmail.com",
+    author="Udita Agarwal, Renu Kumari, Peter Murray Rust",
+    author_email="udita20agarwal@gmail.com, rk_2013@nipgr.ac.in, peter.murray.rust@googlemail.com",
     description="A comprehensive library for text processing, keyword extraction, and classification from PDF and HTML documents",
     long_description=long_description,
     long_description_content_type="text/markdown",
